@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.14.3",
+    "instaloader>=4.15",
     "matplotlib>=3.10.8",
     "numpy>=2.4.2",
     "pandas>=3.0.1",

@@ -9,4 +9,7 @@ wheels/
 # Virtual environments
 .venv
 
-tokens.txt
+tokens.json
+data/*
+src/pruebas/*
+tiktok_session/*

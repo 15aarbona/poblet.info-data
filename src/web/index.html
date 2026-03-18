@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Creadores</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .controles { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        select { padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; flex-grow: 1; }
+        .chart-container { position: relative; height: 400px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <h2>📊 Rendimiento de Redes Sociales</h2>
+    
+    <div class="controles">
+        <select id="select-red">
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="youtube">YouTube</option>
+            <option value="twitch">Twitch</option>
+        </select>
+
+        <select id="select-creador">
+            <option value="Todos">🌐 Vista General (Todos)</option>
+        </select>
+
+        <select id="select-metrica">
+            </select>
+
+        <select id="select-tiempo">
+            <option value="todo">📅 Todo el histórico</option>
+            <option value="30">📅 Últimos 30 días</option>
+            <option value="90">📅 Últimos 3 meses</option>
+            <option value="180">📅 Últimos 6 meses</option>
+            <option value="365">📅 Último año</option>
+        </select>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="miGrafico"></canvas>
+    </div>
+</div>
+
+<script>
+    let db = null;
+    let miGrafico = null;
+
+    // 1. Cargar el JSON generado por Python
+    fetch('dashboard_data.json')
+        .then(response => response.json())
+        .then(data => {
+            db = data;
+            inicializarFiltros();
+            actualizarGrafico();
+        })
+        .catch(error => console.error('Error cargando los datos:', error));
+
+    function inicializarFiltros() {
+        const selectCreador = document.getElementById('select-creador');
+        const selectRed = document.getElementById('select-red');
+        const selectMetrica = document.getElementById('select-metrica');
+        const selectTiempo = document.getElementById('select-tiempo');
+        
+        // Llenar creadores
+        db.creadores.forEach(creador => {
+            let option = document.createElement('option');
+            option.value = creador;
+            option.textContent = "👤 " + creador;
+            selectCreador.appendChild(option);
+        });
+
+        // Event Listeners para actualizar al cambiar CUALQUIER filtro
+        selectRed.addEventListener('change', () => { actualizarMetricas(); actualizarGrafico(); });
+        selectCreador.addEventListener('change', actualizarGrafico);
+        selectMetrica.addEventListener('change', actualizarGrafico);
+        selectTiempo.addEventListener('change', actualizarGrafico);
+
+        actualizarMetricas();
+    }
+
+    function actualizarMetricas() {
+        const red = document.getElementById('select-red').value;
+        const selectMetrica = document.getElementById('select-metrica');
+        
+        // Guardamos la métrica seleccionada actualmente por si existe en la nueva red
+        const metricaActual = selectMetrica.value; 
+        selectMetrica.innerHTML = ''; 
+
+        if (db.datos_temporales[red] && db.datos_temporales[red]["Todos"].length > 0) {
+            const registro = db.datos_temporales[red]["Todos"][0];
+            const metricas = Object.keys(registro).filter(k => k !== 'fecha');
+
+            metricas.forEach(metrica => {
+                let option = document.createElement('option');
+                option.value = metrica;
+                option.textContent = "📈 " + metrica.charAt(0).toUpperCase() + metrica.slice(1);
+                selectMetrica.appendChild(option);
+            });
+
+            // Intentar mantener la selección anterior si aplica a esta red (ej. de 'likes' en IG a 'likes' en TikTok)
+            if (metricas.includes(metricaActual)) {
+                selectMetrica.value = metricaActual;
+            }
+        }
+    }
+
+    function actualizarGrafico() {
+        const red = document.getElementById('select-red').value;
+        const creador = document.getElementById('select-creador').value;
+        const metrica = document.getElementById('select-metrica').value;
+        const diasTiempo = document.getElementById('select-tiempo').value;
+
+        if (!db.datos_temporales[red] || !db.datos_temporales[red][creador]) {
+            console.warn("No hay datos temporales para esta selección.");
+            return;
+        }
+
+        let datosSeleccionados = db.datos_temporales[red][creador];
+
+        // --- NUEVO: LÓGICA DE FILTRADO DE TIEMPO ---
+        if (diasTiempo !== 'todo') {
+            const fechaLimite = new Date();
+            fechaLimite.setDate(fechaLimite.getDate() - parseInt(diasTiempo));
+
+            datosSeleccionados = datosSeleccionados.filter(d => {
+                const fechaDato = new Date(d.fecha);
+                return fechaDato >= fechaLimite;
+            });
+        }
+        
+        // Extraer etiquetas (X) y valores (Y) ya filtrados
+        const etiquetas = datosSeleccionados.map(d => d.fecha);
+        const valores = datosSeleccionados.map(d => d[metrica]);
+
+        dibujarGrafico(etiquetas, valores, metrica, red);
+    }
+
+    function dibujarGrafico(etiquetas, valores, metrica, red) {
+        const ctx = document.getElementById('miGrafico').getContext('2d');
+
+        if (miGrafico) {
+            miGrafico.destroy();
+        }
+
+        miGrafico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: etiquetas,
+                datasets: [{
+                    label: `Total de ${metrica} en ${red}`,
+                    data: valores,
+                    borderColor: '#00D2FF',
+                    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#007BFF',
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            // Formatea los números grandes (ej. 10000 -> 10k)
+                            callback: function(value, index, values) {
+                                if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                                if (value >= 1000) return (value / 1000).toFixed(1) + 'k';
+                                return value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

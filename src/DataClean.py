@@ -2,6 +2,8 @@ import pandas as pd
 import re
 from pathlib import Path
 
+from exportar_web import exportar_a_json
+
 class Cleaner:
     def __init__(self):
         self.data_path = Path().cwd() / "data"
@@ -75,6 +77,13 @@ class Cleaner:
             df_clean.to_parquet(archivo_clean, index=False)
             print(f"   🔄 Fusión completada: 'clean_{red_social}' agrupado por semanas con éxito.")
 
+        print(f"   🌐 Actualizando JSON del Dashboard con los nuevos datos de {red_social}...")
+        try:
+            exportar_a_json()
+            print("   ✅ Dashboard web actualizado correctamente.")
+        except Exception as e:
+            print(f"   ❌ Error al exportar los datos para la web: {e}")
+            
     # ----------------------------------------------
     # LIMPIEZA DE INSTAGRAM
     # ----------------------------------------------

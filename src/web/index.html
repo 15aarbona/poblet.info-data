@@ -8,9 +8,26 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
         .dashboard-container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .controles { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-        select { padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; flex-grow: 1; }
-        .chart-container { position: relative; height: 400px; width: 100%; }
+        
+        .controles { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-start; }
+        .bloque-control { display: flex; flex-direction: column; gap: 5px; }
+        .bloque-control label { font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase; }
+        
+        select, input[type="text"] { 
+            padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; box-sizing: border-box; 
+        }
+        select { height: 40px; }
+        
+        .panel-creadores-wrapper { flex-grow: 2; display: flex; flex-direction: column; gap: 5px; min-width: 250px; }
+        
+        .contenedor-creadores {
+            border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #fff;
+            display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;
+        }
+        .contenedor-creadores label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 2px 5px; border-radius: 4px; }
+        .contenedor-creadores label:hover { background-color: #f0f4f8; }
+
+        .chart-container { position: relative; height: 400px; width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -19,151 +36,170 @@
     <h2>📊 Rendimiento de Redes Sociales</h2>
     
     <div class="controles">
-        <select id="select-red">
-            <option value="instagram">Instagram</option>
-            <option value="tiktok">TikTok</option>
-            <option value="youtube">YouTube</option>
-            <option value="twitch">Twitch</option>
-        </select>
-
-        <select id="select-creador">
-            <option value="Todos">🌐 Vista General (Todos)</option>
-        </select>
-
-        <select id="select-metrica">
+        <div class="bloque-control">
+            <label>Plataforma</label>
+            <select id="select-red" onchange="cambioRed()">
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="youtube">YouTube</option>
+                <option value="twitch">Twitch</option>
             </select>
+        </div>
 
-        <select id="select-tiempo">
-            <option value="todo">📅 Todo el histórico</option>
-            <option value="30">📅 Últimos 30 días</option>
-            <option value="90">📅 Últimos 3 meses</option>
-            <option value="180">📅 Últimos 6 meses</option>
-            <option value="365">📅 Último año</option>
-        </select>
+        <div class="bloque-control">
+            <label>Métrica</label>
+            <select id="select-metrica" onchange="actualizarGrafica()"></select>
+        </div>
+
+        <div class="bloque-control">
+            <label>Rango Temporal</label>
+            <select id="rango-tiempo" onchange="actualizarGrafica()">
+                <option value="1m">Último mes</option>
+                <option value="3m" selected>Últimos 3 meses</option>
+                <option value="6m">Últimos 6 meses</option>
+                <option value="1y">Último año</option>
+                <option value="all">Todo el histórico</option>
+            </select>
+        </div>
+        
+        <div class="panel-creadores-wrapper">
+            <label>Perfiles a comparar</label>
+            <input type="text" id="buscador-creadores" placeholder="🔍 Buscar creador..." oninput="filtrarCreadores()">
+            <div id="panel-creadores" class="contenedor-creadores"></div>
+        </div>
     </div>
 
     <div class="chart-container">
-        <canvas id="miGrafico"></canvas>
+        <canvas id="myChart"></canvas>
     </div>
 </div>
 
 <script>
-    let db = null;
-    let miGrafico = null;
+    let chartInstance = null;
+    let datosWeb = null;
 
-    // 1. Cargar el JSON generado por Python
+    const colores = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#00D2FF', '#8AC926', '#E63946', '#2A9D8F'];
+
+    // 🔥 AQUÍ ESTÁ EL CAMBIO: Hemos añadido "seguidores" a todas las redes
+    const metricasDisponibles = {
+        "instagram": ["seguidores", "likes", "comentarios"],
+        "tiktok": ["seguidores", "vistas", "likes"],
+        "youtube": ["seguidores", "visualizaciones", "likes"],
+        "twitch": ["seguidores", "visualizaciones", "duracion"]
+    };
+
     fetch('dashboard_data.json')
         .then(response => response.json())
         .then(data => {
-            db = data;
-            inicializarFiltros();
-            actualizarGrafico();
+            datosWeb = data;
+            cambioRed();
         })
-        .catch(error => console.error('Error cargando los datos:', error));
+        .catch(error => console.error("Error cargando JSON:", error));
 
-    function inicializarFiltros() {
-        const selectCreador = document.getElementById('select-creador');
-        const selectRed = document.getElementById('select-red');
-        const selectMetrica = document.getElementById('select-metrica');
-        const selectTiempo = document.getElementById('select-tiempo');
+    function cambioRed() {
+        if (!datosWeb) return;
+
+        const red = document.getElementById("select-red").value;
+        const selectMetrica = document.getElementById("select-metrica");
+        const panel = document.getElementById("panel-creadores");
         
-        // Llenar creadores
-        db.creadores.forEach(creador => {
-            let option = document.createElement('option');
-            option.value = creador;
-            option.textContent = "👤 " + creador;
-            selectCreador.appendChild(option);
+        selectMetrica.innerHTML = "";
+        metricasDisponibles[red].forEach(m => {
+            selectMetrica.innerHTML += `<option value="${m}">${m.toUpperCase()}</option>`;
         });
 
-        // Event Listeners para actualizar al cambiar CUALQUIER filtro
-        selectRed.addEventListener('change', () => { actualizarMetricas(); actualizarGrafico(); });
-        selectCreador.addEventListener('change', actualizarGrafico);
-        selectMetrica.addEventListener('change', actualizarGrafico);
-        selectTiempo.addEventListener('change', actualizarGrafico);
+        panel.innerHTML = "";
+        document.getElementById("buscador-creadores").value = "";
+        
+        const creadoresEnRed = Object.keys(datosWeb.datos_temporales[red])
+                                     .filter(c => c !== "Todos")
+                                     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
-        actualizarMetricas();
+        panel.innerHTML += `<label class="item-creador"><input type="checkbox" value="Todos" onchange="actualizarGrafica()" checked> <b>⭐ Todos (Suma Total)</b></label>`;
+        
+        creadoresEnRed.forEach(c => {
+            panel.innerHTML += `<label class="item-creador"><input type="checkbox" value="${c}" onchange="actualizarGrafica()"> ${c}</label>`;
+        });
+
+        actualizarGrafica();
     }
 
-    function actualizarMetricas() {
-        const red = document.getElementById('select-red').value;
-        const selectMetrica = document.getElementById('select-metrica');
+    function filtrarCreadores() {
+        const textoBusqueda = document.getElementById("buscador-creadores").value.toLowerCase();
+        const labels = document.querySelectorAll(".item-creador");
         
-        // Guardamos la métrica seleccionada actualmente por si existe en la nueva red
-        const metricaActual = selectMetrica.value; 
-        selectMetrica.innerHTML = ''; 
-
-        if (db.datos_temporales[red] && db.datos_temporales[red]["Todos"].length > 0) {
-            const registro = db.datos_temporales[red]["Todos"][0];
-            const metricas = Object.keys(registro).filter(k => k !== 'fecha');
-
-            metricas.forEach(metrica => {
-                let option = document.createElement('option');
-                option.value = metrica;
-                option.textContent = "📈 " + metrica.charAt(0).toUpperCase() + metrica.slice(1);
-                selectMetrica.appendChild(option);
-            });
-
-            // Intentar mantener la selección anterior si aplica a esta red (ej. de 'likes' en IG a 'likes' en TikTok)
-            if (metricas.includes(metricaActual)) {
-                selectMetrica.value = metricaActual;
+        labels.forEach(label => {
+            const nombre = label.innerText.toLowerCase();
+            if (nombre.includes(textoBusqueda) || nombre.includes("todos (suma total)")) {
+                label.style.display = "flex";
+            } else {
+                label.style.display = "none";
             }
-        }
+        });
     }
 
-    function actualizarGrafico() {
-        const red = document.getElementById('select-red').value;
-        const creador = document.getElementById('select-creador').value;
-        const metrica = document.getElementById('select-metrica').value;
-        const diasTiempo = document.getElementById('select-tiempo').value;
+    function actualizarGrafica() {
+        if (!datosWeb) return;
 
-        if (!db.datos_temporales[red] || !db.datos_temporales[red][creador]) {
-            console.warn("No hay datos temporales para esta selección.");
-            return;
-        }
-
-        let datosSeleccionados = db.datos_temporales[red][creador];
-
-        // --- NUEVO: LÓGICA DE FILTRADO DE TIEMPO ---
-        if (diasTiempo !== 'todo') {
-            const fechaLimite = new Date();
-            fechaLimite.setDate(fechaLimite.getDate() - parseInt(diasTiempo));
-
-            datosSeleccionados = datosSeleccionados.filter(d => {
-                const fechaDato = new Date(d.fecha);
-                return fechaDato >= fechaLimite;
-            });
-        }
+        const red = document.getElementById("select-red").value;
+        const metrica = document.getElementById("select-metrica").value;
+        const rango = document.getElementById("rango-tiempo").value;
         
-        // Extraer etiquetas (X) y valores (Y) ya filtrados
-        const etiquetas = datosSeleccionados.map(d => d.fecha);
-        const valores = datosSeleccionados.map(d => d[metrica]);
+        const checkboxes = document.querySelectorAll('#panel-creadores input[type="checkbox"]:checked');
+        const creadoresSeleccionados = Array.from(checkboxes).map(cb => cb.value);
 
-        dibujarGrafico(etiquetas, valores, metrica, red);
-    }
+        if (chartInstance) chartInstance.destroy();
+        if (creadoresSeleccionados.length === 0) return;
 
-    function dibujarGrafico(etiquetas, valores, metrica, red) {
-        const ctx = document.getElementById('miGrafico').getContext('2d');
-
-        if (miGrafico) {
-            miGrafico.destroy();
+        const todasLasFechas = datosWeb.datos_temporales[red]["Todos"].map(d => d.fecha);
+        
+        let fechaCorteStr = "";
+        if (rango !== "all" && todasLasFechas.length > 0) {
+            const ultimaFecha = new Date(todasLasFechas[todasLasFechas.length - 1]);
+            
+            if (rango === "1m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 1);
+            if (rango === "3m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 3);
+            if (rango === "6m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 6);
+            if (rango === "1y") ultimaFecha.setFullYear(ultimaFecha.getFullYear() - 1);
+            
+            fechaCorteStr = ultimaFecha.toISOString().split('T')[0];
         }
 
-        miGrafico = new Chart(ctx, {
+        const indicesValidos = [];
+        todasLasFechas.forEach((fecha, index) => {
+            if (rango !== "all" && fecha < fechaCorteStr) return;
+            indicesValidos.push(index);
+        });
+
+        const etiquetasFiltradas = indicesValidos.map(i => todasLasFechas[i]);
+        
+        const datasets = creadoresSeleccionados.map((creador, index) => {
+            const datosCreador = datosWeb.datos_temporales[red][creador] || [];
+            const valoresCompletos = datosCreador.map(d => d[metrica] || 0);
+            
+            const valoresFiltrados = indicesValidos.map(i => valoresCompletos[i]);
+            const color = colores[index % colores.length];
+
+            return {
+                label: creador !== "Todos" ? creador : `Total Sumado`,
+                data: valoresFiltrados,
+                borderColor: color,
+                backgroundColor: color + '20',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: color,
+                pointRadius: 2,
+                pointHoverRadius: 6
+            };
+        });
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: etiquetas,
-                datasets: [{
-                    label: `Total de ${metrica} en ${red}`,
-                    data: valores,
-                    borderColor: '#00D2FF',
-                    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#007BFF',
-                    pointRadius: 3,
-                    pointHoverRadius: 6
-                }]
+                labels: etiquetasFiltradas,
+                datasets: datasets
             },
             options: {
                 responsive: true,
@@ -172,8 +208,7 @@
                     y: { 
                         beginAtZero: true,
                         ticks: {
-                            // Formatea los números grandes (ej. 10000 -> 10k)
-                            callback: function(value, index, values) {
+                            callback: function(value) {
                                 if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
                                 if (value >= 1000) return (value / 1000).toFixed(1) + 'k';
                                 return value;
@@ -182,11 +217,9 @@
                     }
                 },
                 plugins: {
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
         });
     }

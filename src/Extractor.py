@@ -36,19 +36,19 @@ class Extractor:
         self.df_youtube = self._obtener_columna_red_social("youtube")
         self.df_twitch = self._obtener_columna_red_social("twitch")
 
-        self.df_instagram = self.df_instagram.iloc[15:16]
-        self.df_tiktok = self.df_tiktok.iloc[15:16]
-        self.df_youtube = self.df_youtube.iloc[3:4]
-        self.df_twitch = self.df_twitch.iloc[0:1]
+        # self.df_instagram = self.df_instagram.iloc[15:16]
+        # self.df_tiktok = self.df_tiktok.iloc[15:16]
+        # self.df_youtube = self.df_youtube.iloc[3:4]
+        # self.df_twitch = self.df_twitch.iloc[0:1]
 
         self.fechas_cache_ig = self._obtener_fechas_cache("instagram", "nick_instagram")
         self.fechas_cache_tk = self._obtener_fechas_cache("tiktok", "nick_tiktok")
         self.fechas_cache_yt = self._obtener_fechas_cache("youtube", "nick_youtube")
         self.fechas_cache_tw = self._obtener_fechas_cache("twitch", "nick_twitch")
 
-    def _reportar_estado(self, red, creador, accion):
+    def _reportar_estado(self, red, creador, accion, total=None):
         if self.ui_callback:
-            self.ui_callback(red, creador, accion)
+            self.ui_callback(red, creador, accion, total)
 
     def _obtener_columna_red_social(self, red_social: str) -> pd.DataFrame:
         df = self.df_creadors[["creador", f"nick_{red_social}"]].copy()
@@ -204,7 +204,7 @@ class Extractor:
         altura_anterior = await pagina.evaluate("document.body.scrollHeight")
         intentos_sin_bajar = 0
 
-        for i in range(50):
+        for i in range(100):
             await pagina.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             
             posts_antes = len(state['posts'])
@@ -242,19 +242,31 @@ class Extractor:
     async def _ejecutar_extraccion_instagram(self):
         print(f"\n🚀 Iniciant extracció d'Instagram...\n")
         todos_los_datos = []
+        
+        # 🟢 Avisem a la GUI del total per a muntar el (0/80)
+        self._reportar_estado("IG", "", "init", total=len(self.df_instagram))
+        
         async with async_playwright() as p:
             contexto = await p.chromium.launch_persistent_context(
                 user_data_dir="./instagram_session", headless=False, viewport={'width': 1920, 'height': 1080},
                 args=["--disable-blink-features=AutomationControlled", "--disable-infobars"]
             )
             
-            chunk_size = 3
-            for i in range(0, len(self.df_instagram), chunk_size):
-                chunk = self.df_instagram.iloc[i:i+chunk_size]
-                tareas = [self._extraer_perfil_instagram_con_contexto(contexto, fila) for _, fila in chunk.iterrows()]
-                resultados = await asyncio.gather(*tareas)
-                for df_res in resultados:
-                    if not df_res.empty: todos_los_datos.append(df_res)
+            # 🟢 El semàfor permetrà MÀXIM 3 al mateix temps
+            semaforo = asyncio.Semaphore(3)
+            
+            async def procesar_con_semaforo(fila):
+                async with semaforo:
+                    # Quan hi ha lloc lliure, entra directament
+                    return await self._extraer_perfil_instagram_con_contexto(contexto, fila)
+
+            # Llancem TOTES les tasques de colp. El semàfor les ordena en la cua instantàniament.
+            tareas = [asyncio.create_task(procesar_con_semaforo(fila)) for _, fila in self.df_instagram.iterrows()]
+            resultados = await asyncio.gather(*tareas)
+            
+            for df_res in resultados:
+                if df_res is not None and not df_res.empty:
+                    todos_los_datos.append(df_res)
                 
             await contexto.close()
 
@@ -283,6 +295,8 @@ class Extractor:
         return interceptor
 
     async def _extraer_perfil_tiktok_con_contexto(self, contexto, fila):
+        import random # Per a les esperes aleatòries
+        
         creador_nombre = fila['creador']
         nick_original = fila['nick_tiktok'] 
         nick_limpio = str(nick_original).strip('/').replace('@', '').split('?')[0].lower()
@@ -293,17 +307,88 @@ class Extractor:
         state = {'videos': [], 'creador': creador_nombre, 'nick_orig': nick_original, 'nick_limpio': nick_limpio}
 
         pagina = await contexto.new_page()
+        
+        # --- 🟢 NOU: INJECCIÓ ANTI-BOT ---
+        # Borrem el rastre que deixa Playwright perquè TikTok no sàpia que és un script
+        await pagina.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.navigator.chrome = { runtime: {} };
+        """)
+        # ---------------------------------
+        
         await pagina.route("**/*", self._bloquear_recursos_innecesarios)
         pagina.on("response", self._crear_interceptor_tk(state))
         
+        url = f"https://www.tiktok.com/@{nick_limpio}"
         print(f"🌍 [TK] Entrant a @{nick_limpio}...")
-        try: await pagina.goto(f"https://www.tiktok.com/@{nick_limpio}", timeout=15000)
-        except: pass
         
+        max_intentos = 3
+        cargado_con_exito = False
+
+        # 1. NAVEGAMOS UNA SOLA VEZ FUERA DEL BUCLE
+        await asyncio.sleep(random.uniform(1.0, 3.0))
+        try:
+            await pagina.goto(url, timeout=15000, wait_until="domcontentloaded")
+        except:
+            pass # Si da timeout inicial no pasa nada, el bucle lo detectará
+            
+        # 2. BUCLE DE COMPROBACIÓN Y RESCATE
+        for intento in range(max_intentos):
+            try:
+                # Solo comprobamos si los elementos ya están en pantalla
+                await pagina.wait_for_selector('h2[data-e2e="user-title"], div[data-e2e="user-post-item"]', timeout=8000)
+                
+                # Si llega aquí, es que hay vídeos visibles. ¡Rompemos el bucle!
+                cargado_con_exito = True
+                break 
+                
+            except Exception:
+                # Si no hay vídeos, intentamos el rescate
+                if intento < max_intentos - 1:
+                    print(f"⚠️ [TK] {creador_nombre} encallat. Intentant saltar bloqueig (Intent {intento + 2}/{max_intentos})...")
+                    try:
+                        clic_exitoso = await pagina.evaluate('''() => {
+                            let botones = Array.from(document.querySelectorAll('button'));
+                            let btn = botones.find(b => 
+                                b.innerText.includes('Actualizar') || 
+                                b.innerText.includes('Try again') || 
+                                b.innerText.includes('Reintentar') ||
+                                b.innerText.includes('Reload')
+                            );
+                            if (btn) { 
+                                btn.click(); 
+                                return true; 
+                            }
+                            return false;
+                        }''')
+                        
+                        if clic_exitoso:
+                            print(f"   🔄 [TK] Botó trobat i polsat via codi intern!")
+                        else:
+                            await pagina.reload(timeout=15000, wait_until="domcontentloaded")
+                    except Exception:
+                        pass
+                    
+                    # Le damos tiempo para que la página procese el clic del botón
+                    temps_espera = random.uniform(4.5, 8.5)
+                    await asyncio.sleep(temps_espera)
+                    
+                    # Al terminar la espera, el bucle vuelve a subir e intenta el wait_for_selector otra vez
+                else:
+                    print(f"❌ [TK] Impossible carregar a {creador_nombre} després de {max_intentos} intents. Botant...")
+
+        if not cargado_con_exito:
+            await pagina.close()
+            self._reportar_estado("TT", creador_nombre, "done")
+            return pd.DataFrame()
+        
+        # --- A partir d'ací és el teu codi de scroll normal ---
         altura_anterior = await pagina.evaluate("document.body.scrollHeight")
         intentos_sin_bajar = 0
 
-        for i in range(50):
+        for i in range(100):
+            # Espera humana entre scrolls
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             await pagina.evaluate("window.scrollBy(0, 1500)")
             
             videos_antes = len(state['videos'])
@@ -336,21 +421,32 @@ class Extractor:
         return df
 
     async def _ejecutar_extraccion_tiktok(self):
-        print(f"\n🚀 Iniciant extracció de TikTok...\n")
+        print(f"\n🚀 Iniciant extracció de TikTok (Mode 1 a 1)...\n")
         todos_los_datos = []
+        
+        # 🟢 Avisem a la GUI del total
+        self._reportar_estado("TT", "", "init", total=len(self.df_tiktok))
+        
         async with async_playwright() as p:
             contexto = await p.chromium.launch_persistent_context(
-                user_data_dir="./tiktok_session", headless=False, viewport={'width': 1920, 'height': 1080},
+                user_data_dir="./tiktok_session", 
+                headless=False, 
+                viewport={'width': 1920, 'height': 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
                 args=["--disable-blink-features=AutomationControlled", "--disable-infobars"]
             )
             
-            chunk_size = 3
-            for i in range(0, len(self.df_tiktok), chunk_size):
-                chunk = self.df_tiktok.iloc[i:i+chunk_size]
-                tareas = [self._extraer_perfil_tiktok_con_contexto(contexto, fila) for _, fila in chunk.iterrows()]
-                resultados = await asyncio.gather(*tareas)
-                for df_res in resultados:
-                    if not df_res.empty: todos_los_datos.append(df_res)
+            # 🟢 PROCESAMENT 1 A 1 (Sense Semàfor ni Gather)
+            for _, fila in self.df_tiktok.iterrows():
+                # Extraiem el creador i ESPEREM a que acabe completament
+                df_res = await self._extraer_perfil_tiktok_con_contexto(contexto, fila)
+                
+                if df_res is not None and not df_res.empty: 
+                    todos_los_datos.append(df_res)
+                
+                # Xicotet descans entre perfils per a paréixer més humans i no saturar TikTok
+                import random
+                await asyncio.sleep(random.uniform(2.5, 5.0))
                 
             await contexto.close()
 
@@ -359,6 +455,8 @@ class Extractor:
 
     def _extraccion_youtube(self):
         print(f"\n▶️ Iniciant extracció de YouTube...\n")
+        self._reportar_estado("YT", "", "init", total=len(self.df_youtube)) 
+        
         historico_videos = []
         for c, row in self.df_youtube.iterrows():
             creador_nombre = row.get('creador')
@@ -409,6 +507,8 @@ class Extractor:
     
     def _extraccion_twitch(self):
         print(f"\n🎮 Iniciant extracció de Twitch...\n")
+        self._reportar_estado("YT", "", "init", total=len(self.df_youtube))
+
         historico_videos = []
         headers = {'Client-ID': self.TWITCH_CLIENT_ID, 'Authorization': f'Bearer {self.twitch_token}'}
         

@@ -51,6 +51,13 @@ class PipelineApp(ctk.CTk):
         self.tab_pipeline = self.tabview.add("Processament")
         self.tab_bd = self.tabview.add("Base de Dades")
 
+        self.progreso_redes = {
+            "IG": {"actual": 0, "total": 0},
+            "TT": {"actual": 0, "total": 0},
+            "YT": {"actual": 0, "total": 0},
+            "TW": {"actual": 0, "total": 0}
+        }
+        
         self.redes_vars = {
             'instagram': ctk.BooleanVar(value=True),
             'tiktok': ctk.BooleanVar(value=True),
@@ -358,26 +365,43 @@ class PipelineApp(ctk.CTk):
         hilo.daemon = True
         hilo.start()
 
-    def manejar_evento_extractor(self, red, creador, accion):
-        self.after(0, self._actualizar_panel_vivo, red, creador, accion)
+    def manejar_evento_extractor(self, red, creador, accion, total=None):
+        self.after(0, self._actualizar_panel_vivo, red, creador, accion, total)
 
-    def _actualizar_panel_vivo(self, red, creador, accion):
+    def _actualizar_panel_vivo(self, red, creador, accion, total=None):
+        # 1. Si és l'arrancada de la xarxa, guardem el total
+        if accion == "init":
+            self.progreso_redes[red]["total"] = total
+            self.progreso_redes[red]["actual"] = 0
+            return
+
+        # 2. Actualitzem la llista de qui està actiu i sumem quan acaben
         if accion == "start":
             if creador not in self.estado_vivo[red]:
                 self.estado_vivo[red].append(creador)
         elif accion == "done":
             if creador in self.estado_vivo[red]:
                 self.estado_vivo[red].remove(creador)
+            self.progreso_redes[red]["actual"] += 1
 
+        # 3. Construïm el text de la pantalla
         lineas_texto = []
         for plataforma, creadores in self.estado_vivo.items():
+            # Muntem el text del progrés (ex: "(3/80)")
+            total_red = self.progreso_redes[plataforma]["total"]
+            if total_red > 0:
+                progreso_txt = f"({self.progreso_redes[plataforma]['actual']}/{total_red})"
+            else:
+                progreso_txt = ""
+
             for c in creadores:
-                lineas_texto.append(f"[{plataforma}] extraient de {c}")
+                lineas_texto.append(f"[{plataforma}] {progreso_txt} extraient de {c}")
         
         texto_final = "\n".join(lineas_texto)
         if not texto_final.strip():
             texto_final = "✅ Extracció finalitzada o en espera."
 
+        # 4. Escrivim
         self.caja_vivo.configure(state="normal")
         self.caja_vivo.delete("0.0", "end")
         self.caja_vivo.insert("0.0", texto_final)

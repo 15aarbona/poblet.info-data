@@ -308,8 +308,6 @@ class Extractor:
 
         pagina = await contexto.new_page()
         
-        # --- 🟢 NOU: INJECCIÓ ANTI-BOT ---
-        # Borrem el rastre que deixa Playwright perquè TikTok no sàpia que és un script
         await pagina.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             window.navigator.chrome = { runtime: {} };
@@ -421,7 +419,7 @@ class Extractor:
         return df
 
     async def _ejecutar_extraccion_tiktok(self):
-        print(f"\n🚀 Iniciant extracció de TikTok (Mode 1 a 1)...\n")
+        print(f"\n🚀 Iniciant extracció de TikTok...\n")
         todos_los_datos = []
         
         # 🟢 Avisem a la GUI del total

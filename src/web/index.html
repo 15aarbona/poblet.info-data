@@ -1,229 +1,771 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Creadores</title>
+    <title>Dashboard Analític - Business Intelligence</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
-        .dashboard-container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 1300px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
-        .controles { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-start; }
-        .bloque-control { display: flex; flex-direction: column; gap: 5px; }
-        .bloque-control label { font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase; }
-        
-        select, input[type="text"] { 
-            padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; box-sizing: border-box; 
-        }
-        select { height: 40px; }
-        
-        .panel-creadores-wrapper { flex-grow: 2; display: flex; flex-direction: column; gap: 5px; min-width: 250px; }
-        
-        .contenedor-creadores {
-            border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #fff;
-            display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;
-        }
-        .contenedor-creadores label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 2px 5px; border-radius: 4px; }
-        .contenedor-creadores label:hover { background-color: #f0f4f8; }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eee; padding-bottom: 15px; }
 
-        .chart-container { position: relative; height: 400px; width: 100%; margin-top: 10px; }
+        /* Pestanyes */
+        .tabs { display: flex; gap: 10px; border-bottom: 2px solid #eee; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-button { background: none; border: none; padding: 12px 20px; font-size: 15px; font-weight: bold; color: #666; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.2s; }
+        .tab-button:hover { color: #007BFF; }
+        .tab-button.active { color: #007BFF; border-bottom-color: #007BFF; }
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Controls globals */
+        .controles { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-start; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;}
+        .bloque-control { display: flex; flex-direction: column; gap: 5px; flex-grow: 1; min-width: 150px; }
+        .bloque-control label { font-size: 12px; font-weight: bold; color: #495057; text-transform: uppercase; }
+        select, input[type="text"] { padding: 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 14px; width: 100%; box-sizing: border-box; }
+        
+        /* Contenidors de gràfiques */
+        .chart-container { position: relative; height: 400px; width: 100%; margin-top: 15px; }
+        .chart-container.large { height: 500px; }
+        
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .panel-grafica { background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .panel-grafica h3 { margin-top: 0; font-size: 16px; color: #343a40; text-align: center; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .kpi-card { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .kpi-title { font-size: 14px; font-weight: bold; color: #6c757d; text-transform: uppercase; margin-bottom: 10px; }
+        .kpi-value { font-size: 32px; font-weight: 800; color: #212529; margin: 0; }
+        .kpi-trend { font-size: 13px; font-weight: bold; margin-top: 8px; display: inline-block; padding: 3px 8px; border-radius: 20px; }
+        .trend-up { background: #d4edda; color: #155724; }
+        .trend-down { background: #f8d7da; color: #721c24; }
+        .trend-neutral { background: #e2e3e5; color: #383d41; }
+
+        /* Cercador de Creadors (Pestanya Evolució) */
+        .contenedor-creadores { border: 1px solid #ced4da; padding: 10px; border-radius: 6px; background: #fff; display: flex; flex-direction: column; gap: 5px; max-height: 180px; overflow-y: auto; }
+        .contenedor-creadores label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px; border-radius: 4px; transition: background 0.2s; }
+        .contenedor-creadores label:hover { background-color: #f1f3f5; }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
-    <h2>📊 Rendimiento de Redes Sociales</h2>
+    <h2>🚀 Dashboard Analític de Creadors</h2>
     
-    <div class="controles">
-        <div class="bloque-control">
-            <label>Plataforma</label>
-            <select id="select-red" onchange="cambioRed()">
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-                <option value="youtube">YouTube</option>
-                <option value="twitch">Twitch</option>
-            </select>
+    <div class="tabs">
+        <button class="tab-button active" onclick="canviarPestanya(event, 'tab-global')">🌍 Visió Global</button>
+        <button class="tab-button" onclick="canviarPestanya(event, 'tab-evolucio')">📈 Evolució Diària</button>
+        <button class="tab-button" onclick="canviarPestanya(event, 'tab-ranking')">🏆 Rànquings i Matriu</button>
+        <button class="tab-button" onclick="canviarPestanya(event, 'tab-adn')">🧬 ADN del Creador</button>
+    </div>
+
+    <div id="tab-global" class="tab-content active">
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">👁️ Visualitzacions Totals (30 dies)</div>
+                <div class="kpi-value" id="kpi-views">-</div>
+                <div class="kpi-trend" id="kpi-views-trend">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">❤️ Nou Engagement (30 dies)</div>
+                <div class="kpi-value" id="kpi-eng">-</div>
+                <div class="kpi-trend" id="kpi-eng-trend">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">👥 Nous Seguidors (30 dies)</div>
+                <div class="kpi-value" id="kpi-foll">-</div>
+                <div class="kpi-trend" id="kpi-foll-trend">-</div>
+            </div>
         </div>
 
-        <div class="bloque-control">
-            <label>Métrica</label>
-            <select id="select-metrica" onchange="actualizarGrafica()"></select>
+        <div class="controles" style="margin-bottom: 5px;">
+            <div class="bloque-control">
+                <label>Selecciona Any per a Gràfiques</label>
+                <select id="global-anyo" onchange="actualitzarTabGlobal()"></select>
+            </div>
+            <div class="bloque-control">
+                <label>Mètrica d'Avaluació (Per a Quota i Comparativa)</label>
+                <select id="global-metrica-donut" onchange="actualitzarTabGlobal()">
+                    <option value="views">Mesurar per Visualitzacions</option>
+                    <option value="engagement">Mesurar per Interaccions (M'agrada/Comentaris)</option>
+                </select>
+            </div>
         </div>
 
-        <div class="bloque-control">
-            <label>Rango Temporal</label>
-            <select id="rango-tiempo" onchange="actualizarGrafica()">
-                <option value="1m">Último mes</option>
-                <option value="3m" selected>Últimos 3 meses</option>
-                <option value="6m">Últimos 6 meses</option>
-                <option value="1y">Último año</option>
-                <option value="all">Todo el histórico</option>
-            </select>
-        </div>
-        
-        <div class="panel-creadores-wrapper">
-            <label>Perfiles a comparar</label>
-            <input type="text" id="buscador-creadores" placeholder="🔍 Buscar creador..." oninput="filtrarCreadores()">
-            <div id="panel-creadores" class="contenedor-creadores"></div>
+        <div class="grid-2col">
+            <div class="panel-grafica">
+                <h3>🍰 Quota de Mercat per Xarxes</h3>
+                <p style="font-size: 11px; color: gray; text-align: center; margin-top: -5px;">Percentatge del total de l'agència que prové de cada plataforma.</p>
+                <div class="chart-container"><canvas id="donutChart"></canvas></div>
+            </div>
+            <div class="panel-grafica">
+                <h3>📊 Comparativa Interanual</h3>
+                <p style="font-size: 11px; color: gray; text-align: center; margin-top: -5px;">Evolució mes a mes de tota l'agència conjunta.</p>
+                <div class="chart-container"><canvas id="yoyChart"></canvas></div>
+            </div>
         </div>
     </div>
 
-    <div class="chart-container">
-        <canvas id="myChart"></canvas>
+    <div id="tab-evolucio" class="tab-content">
+        <div class="controles">
+            <div class="bloque-control" style="flex-grow: 1;">
+                <label>Plataforma</label>
+                <select id="evo-red" onchange="canviRedEvolucio()"></select>
+            </div>
+            <div class="bloque-control" style="flex-grow: 1;">
+                <label>Mètrica 1</label>
+                <select id="evo-metrica" onchange="actualitzarEvolucio()"></select>
+            </div>
+            <div class="bloque-control" style="flex-grow: 1;">
+                <label>Mètrica 2 (Superposada)</label>
+                <select id="evo-metrica2" onchange="actualitzarEvolucio()">
+                    <option value="">-- Cap (Només una) --</option>
+                </select>
+            </div>
+            <div class="bloque-control" style="flex-grow: 1;">
+                <label>Rang Temporal</label>
+                <select id="evo-tiempo" onchange="actualitzarEvolucio()">
+                    <option value="1m">Últim mes</option>
+                    <option value="3m" selected>Últims 3 mesos</option>
+                    <option value="6m">Últims 6 mesos</option>
+                    <option value="1y">Últim any</option>
+                    <option value="all">Tot l'històric</option>
+                </select>
+            </div>
+            <div class="bloque-control" style="flex-grow: 3; width: 100%;">
+                <label>Perfils a comparar</label>
+                <input type="text" id="evo-buscador" placeholder="🔍 Buscar creador..." oninput="filtrarCreadoresEvo()">
+                <div id="evo-creadores" class="contenedor-creadores"></div>
+            </div>
+        </div>
+        <div class="panel-grafica">
+            <div class="chart-container large"><canvas id="evoChart"></canvas></div>
+        </div>
     </div>
+
+    <div id="tab-ranking" class="tab-content">
+        <div class="controles">
+            <div class="bloque-control">
+                <label>Plataforma</label>
+                <select id="rk-red" onchange="canviRedRanking()"></select>
+            </div>
+            <div class="bloque-control">
+                <label>Any d'Avaluació</label>
+                <select id="rk-anyo" onchange="actualitzarTabRanking()"><option value="all">Històric Global</option></select>
+            </div>
+        </div>
+        <div class="grid-2col">
+            <div class="panel-grafica">
+                <h3 id="rk-titulo-barras">🏆 Rànquing Anual (Top 10)</h3>
+                <select id="rk-metrica" style="margin-bottom: 10px; width: 100%;" onchange="actualitzarRanking()"></select>
+                <div class="chart-container"><canvas id="rankingChart"></canvas></div>
+            </div>
+            <div class="panel-grafica">
+                <h3>💎 Matriu d'Engagement (Qualitat vs Quantitat)</h3>
+                <p style="font-size: 11px; color: gray; text-align: center; margin-top: -5px;">Eix X: Seguidors | Eix Y: Total Interaccions (M'agrada + Comentaris)</p>
+                <div class="chart-container"><canvas id="scatterChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-adn" class="tab-content">
+        <div class="controles">
+            <div class="bloque-control">
+                <label>Selecciona un Creador</label>
+                <select id="adn-creador" onchange="actualitzarADN()"></select>
+            </div>
+            <div class="bloque-control">
+                <label>Mètrica a Analitzar</label>
+                <select id="adn-metrica" onchange="actualitzarADN()">
+                    <option value="seguidores" selected>Seguidors (Volum de Comunitat)</option>
+                    <option value="views">Visualitzacions (Abast Total)</option>
+                    <option value="engagement">Engagement (M'agrada + Comentaris)</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-2col">
+            <div class="panel-grafica">
+                <h3>🧬 Empremta Digital (Radar)</h3>
+                <p style="font-size: 11px; color: gray; text-align: center; margin-top: -5px;">Mostra en quina plataforma té més força el creador.</p>
+                <div class="chart-container"><canvas id="radarChart"></canvas></div>
+            </div>
+            <div class="panel-grafica">
+                <h3>📈 Evolució Global Consolidada</h3>
+                <p style="font-size: 11px; color: gray; text-align: center; margin-top: -5px;">Suma de totes les xarxes del creador al llarg del temps.</p>
+                <div class="chart-container"><canvas id="adnLineChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
-    let chartInstance = null;
+    // Variables Globals
     let datosWeb = null;
-
-    const colores = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#00D2FF', '#8AC926', '#E63946', '#2A9D8F'];
-
-    // 🔥 AQUÍ ESTÁ EL CAMBIO: Hemos añadido "seguidores" a todas las redes
-    const metricasDisponibles = {
+    let anysDisponibles = [];
+    let creadorsDisponibles = [];
+    
+    // Instàncies de Gràfiques
+    let chartDonut, chartYoY, chartEvo, chartRanking, chartScatter, chartRadar, chartAdnLine;
+    
+    // Diccionaris i Traduccions
+    const diccMetriques = {
         "instagram": ["seguidores", "likes", "comentarios"],
         "tiktok": ["seguidores", "vistas", "likes"],
         "youtube": ["seguidores", "visualizaciones", "likes"],
         "twitch": ["seguidores", "visualizaciones", "duracion"]
     };
 
+    const tradMetriques = {
+        "seguidores": "Seguidors",
+        "likes": "M'agrada",
+        "comentarios": "Comentaris",
+        "vistas": "Visualitzacions",
+        "visualizaciones": "Visualitzacions",
+        "duracion": "Duració",
+        "engagement": "Interaccions"
+    };
+
+    const xarxes = ["instagram", "tiktok", "youtube", "twitch"];
+    const colorsXarxes = { "instagram": "#E1306C", "tiktok": "#25F4EE", "youtube": "#FF0000", "twitch": "#9146FF" };
+    const paletaGeneral = ['#007BFF', '#28A745', '#FFC107', '#DC3545', '#17A2B8', '#6610F2', '#FD7E14', '#20C997', '#E83E8C', '#6F42C1'];
+    const paletaRanking = ['#03045e', '#023e8a', '#0077b6', '#0096c7', '#00b4d8', '#48cae4', '#90e0ef', '#ade8f4', '#caf0f8', '#e0fbfc'];
+
+    // 1. INICIALITZACIÓ
     fetch('dashboard_data.json')
         .then(response => response.json())
         .then(data => {
             datosWeb = data;
-            cambioRed();
+            extreureMetadades();
+            omplirDesplegablesEstatics();
+            
+            actualitzarTabGlobal();
+            canviRedEvolucio();
+            canviRedRanking();
+            actualitzarRadar();
         })
-        .catch(error => console.error("Error cargando JSON:", error));
+        .catch(error => console.error("Error carregant dades:", error));
 
-    function cambioRed() {
-        if (!datosWeb) return;
-
-        const red = document.getElementById("select-red").value;
-        const selectMetrica = document.getElementById("select-metrica");
-        const panel = document.getElementById("panel-creadores");
+    function extreureMetadades() {
+        const anys = new Set();
+        const creadors = new Set();
         
-        selectMetrica.innerHTML = "";
-        metricasDisponibles[red].forEach(m => {
-            selectMetrica.innerHTML += `<option value="${m}">${m.toUpperCase()}</option>`;
+        xarxes.forEach(x => {
+            if(datosWeb.datos_temporales[x]) {
+                Object.keys(datosWeb.datos_temporales[x]).forEach(c => {
+                    if (c !== "Todos") creadors.add(c);
+                    datosWeb.datos_temporales[x][c].forEach(d => anys.add(d.fecha.substring(0, 4)));
+                });
+            }
         });
 
-        panel.innerHTML = "";
-        document.getElementById("buscador-creadores").value = "";
-        
-        const creadoresEnRed = Object.keys(datosWeb.datos_temporales[red])
-                                     .filter(c => c !== "Todos")
-                                     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
-        panel.innerHTML += `<label class="item-creador"><input type="checkbox" value="Todos" onchange="actualizarGrafica()" checked> <b>⭐ Todos (Suma Total)</b></label>`;
-        
-        creadoresEnRed.forEach(c => {
-            panel.innerHTML += `<label class="item-creador"><input type="checkbox" value="${c}" onchange="actualizarGrafica()"> ${c}</label>`;
-        });
-
-        actualizarGrafica();
+        anysDisponibles = Array.from(anys).sort().reverse();
+        creadorsDisponibles = Array.from(creadors).sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
 
-    function filtrarCreadores() {
-        const textoBusqueda = document.getElementById("buscador-creadores").value.toLowerCase();
-        const labels = document.querySelectorAll(".item-creador");
+    function omplirDesplegablesEstatics() {
+        const opcionsRedes = `<option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="youtube">YouTube</option><option value="twitch">Twitch</option>`;
+        document.getElementById("evo-red").innerHTML = opcionsRedes;
+        document.getElementById("rk-red").innerHTML = opcionsRedes;
+
+        let opcionsAnys = "";
+        anysDisponibles.forEach(any => opcionsAnys += `<option value="${any}">Any ${any}</option>`);
+        document.getElementById("global-anyo").innerHTML = opcionsAnys;
+        document.getElementById("rk-anyo").innerHTML = opcionsAnys + `<option value="all">Històric Global</option>`;
+
+        let opcionsCreadors = "";
+        creadorsDisponibles.forEach(c => opcionsCreadors += `<option value="${c}">${c}</option>`);
+        document.getElementById("adn-creador").innerHTML = opcionsCreadors;
+    }
+
+    function canviarPestanya(evt, idTab) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.getElementById(idTab).classList.add('active');
+        evt.currentTarget.classList.add('active');
+    }
+
+    // ==========================================
+    // PESTANYA 1: VISIÓ GLOBAL
+    // ==========================================
+    function calcularKPIs() {
+        let dadesRef = datosWeb.datos_temporales["instagram"]["Todos"] || [];
+        if (dadesRef.length === 0) return;
+
+        let dataMesNova = new Date(dadesRef[dadesRef.length - 1].fecha);
+        let limitActual = new Date(dataMesNova); limitActual.setDate(limitActual.getDate() - 30);
+        let limitAnterior = new Date(limitActual); limitAnterior.setDate(limitAnterior.getDate() - 30);
+
+        let kpi = { vActual: 0, vAnterior: 0, eActual: 0, eAnterior: 0, fActual: 0, fAnterior: 0 };
+
+        xarxes.forEach(x => {
+            let histGlobal = datosWeb.datos_temporales[x]?.["Todos"] || [];
+            let follMesNou = 0, follActualStart = 0, follAnteriorStart = 0;
+
+            histGlobal.forEach(d => {
+                let fecha = new Date(d.fecha);
+                let views = Number(d.vistas || 0) + Number(d.visualizaciones || 0);
+                let eng = Number(d.likes || 0) + Number(d.comentarios || 0);
+                let foll = Number(d.seguidores || 0);
+
+                if (fecha > limitActual) {
+                    kpi.vActual += views; kpi.eActual += eng;
+                    follMesNou = foll; 
+                } else if (fecha > limitAnterior && fecha <= limitActual) {
+                    kpi.vAnterior += views; kpi.eAnterior += eng;
+                    follActualStart = foll; 
+                } else {
+                    follAnteriorStart = foll; 
+                }
+            });
+
+            kpi.fActual += (follMesNou - follActualStart);
+            kpi.fAnterior += (follActualStart - follAnteriorStart);
+        });
+
+        document.getElementById("kpi-views").innerText = formatearNumero(kpi.vActual);
+        document.getElementById("kpi-eng").innerText = formatearNumero(kpi.eActual);
+        document.getElementById("kpi-foll").innerText = (kpi.fActual > 0 ? "+" : "") + formatearNumero(kpi.fActual);
+
+        pintarTendencia("kpi-views-trend", kpi.vActual, kpi.vAnterior);
+        pintarTendencia("kpi-eng-trend", kpi.eActual, kpi.eAnterior);
+        pintarTendencia("kpi-foll-trend", kpi.fActual, kpi.fAnterior);
+    }
+
+    function pintarTendencia(id, actual, anterior) {
+        let element = document.getElementById(id);
+        if (anterior === 0) { element.innerText = "Sense dades prv."; element.className = "kpi-trend trend-neutral"; return; }
         
-        labels.forEach(label => {
-            const nombre = label.innerText.toLowerCase();
-            if (nombre.includes(textoBusqueda) || nombre.includes("todos (suma total)")) {
-                label.style.display = "flex";
-            } else {
-                label.style.display = "none";
+        let dif = ((actual - anterior) / Math.abs(anterior)) * 100;
+        let prefix = dif > 0 ? "↑ +" : "↓ ";
+        element.innerText = `${prefix}${dif.toFixed(1)}%`;
+        
+        if (dif > 0) element.className = "kpi-trend trend-up";
+        else if (dif < 0) element.className = "kpi-trend trend-down";
+        else element.className = "kpi-trend trend-neutral";
+    }
+
+    function actualitzarTabGlobal() {
+        calcularKPIs();
+        
+        const anyo = document.getElementById("global-anyo").value;
+        const metricaBase = document.getElementById("global-metrica-donut").value; 
+        if (!anyo) return;
+
+        let dadesDonut = [];
+        let labelsDonut = [];
+        let bgDonut = [];
+
+        xarxes.forEach(x => {
+            let suma = 0;
+            let hist = datosWeb.datos_temporales[x]?.["Todos"] || [];
+            hist.forEach(d => {
+                if (d.fecha.startsWith(anyo)) {
+                    if (metricaBase === "views") {
+                        suma += Number(d.vistas || 0) + Number(d.visualizaciones || 0);
+                    } else {
+                        suma += Number(d.likes || 0) + Number(d.comentarios || 0);
+                    }
+                }
+            });
+            if (suma > 0) {
+                labelsDonut.push(x.charAt(0).toUpperCase() + x.slice(1));
+                dadesDonut.push(suma);
+                bgDonut.push(colorsXarxes[x]);
+            }
+        });
+
+        if (chartDonut) chartDonut.destroy();
+        chartDonut = new Chart(document.getElementById('donutChart'), {
+            type: 'doughnut',
+            data: { labels: labelsDonut, datasets: [{ data: dadesDonut, backgroundColor: bgDonut }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+
+        let anyAnterior = (parseInt(anyo) - 1).toString();
+        let dadesActuals = new Array(12).fill(0);
+        let dadesAnteriors = new Array(12).fill(0);
+
+        xarxes.forEach(x => {
+            let hist = datosWeb.datos_temporales[x]?.["Todos"] || [];
+            hist.forEach(d => {
+                let valor = 0;
+                if (metricaBase === "views") valor = Number(d.vistas || 0) + Number(d.visualizaciones || 0);
+                else valor = Number(d.likes || 0) + Number(d.comentarios || 0);
+
+                if (valor > 0) {
+                    let mesIndex = parseInt(d.fecha.substring(5, 7)) - 1; 
+                    if (d.fecha.startsWith(anyo)) dadesActuals[mesIndex] += valor;
+                    if (d.fecha.startsWith(anyAnterior)) dadesAnteriors[mesIndex] += valor;
+                }
+            });
+        });
+
+        const mesosLabel = ["Gen", "Feb", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Des"];
+        if (chartYoY) chartYoY.destroy();
+        chartYoY = new Chart(document.getElementById('yoyChart'), {
+            type: 'bar',
+            data: {
+                labels: mesosLabel,
+                datasets: [
+                    { label: `Any ${anyo}`, data: dadesActuals, backgroundColor: '#007BFF', borderRadius: 4 },
+                    { label: `Any ${anyAnterior}`, data: dadesAnteriors, backgroundColor: '#CED4DA', borderRadius: 4 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: formatearNumero } } } }
+        });
+    }
+
+    // ==========================================
+    // PESTANYA 2: EVOLUCIÓ DIÀRIA (MATEIXA ESCALA)
+    // ==========================================
+    function canviRedEvolucio() {
+        const red = document.getElementById("evo-red").value;
+        const selM1 = document.getElementById("evo-metrica");
+        const selM2 = document.getElementById("evo-metrica2");
+        const panel = document.getElementById("evo-creadores");
+        
+        let opcionsMetriques = "";
+        diccMetriques[red].forEach(m => opcionsMetriques += `<option value="${m}">${tradMetriques[m]}</option>`);
+
+        selM1.innerHTML = opcionsMetriques;
+        selM2.innerHTML = `<option value="">-- Cap (Només una) --</option>` + opcionsMetriques;
+
+        panel.innerHTML = "";
+        document.getElementById("evo-buscador").value = "";
+        
+        const creadorsRed = Object.keys(datosWeb.datos_temporales[red] || {}).filter(c => c !== "Todos").sort();
+        
+        panel.innerHTML += `<label class="item-evo"><input type="checkbox" value="Todos" onchange="actualitzarEvolucio()" checked> <b>⭐ Tots (Suma Total)</b></label>`;
+        creadorsRed.forEach(c => {
+            panel.innerHTML += `<label class="item-evo"><input type="checkbox" value="${c}" onchange="actualitzarEvolucio()"> ${c}</label>`;
+        });
+
+        actualitzarEvolucio();
+    }
+
+    function filtrarCreadoresEvo() {
+        const txt = document.getElementById("evo-buscador").value.toLowerCase();
+        document.querySelectorAll(".item-evo").forEach(lbl => {
+            lbl.style.display = lbl.innerText.toLowerCase().includes(txt) ? "flex" : "none";
+        });
+    }
+
+    function actualitzarEvolucio() {
+        if (!datosWeb) return;
+        const red = document.getElementById("evo-red").value;
+        const m1 = document.getElementById("evo-metrica").value;
+        const m2 = document.getElementById("evo-metrica2").value; 
+        const rango = document.getElementById("evo-tiempo").value;
+        
+        const seleccionats = Array.from(document.querySelectorAll('#evo-creadores input[type="checkbox"]:checked')).map(cb => cb.value);
+
+        if (chartEvo) chartEvo.destroy();
+        if (seleccionats.length === 0 || !datosWeb.datos_temporales[red]) return;
+
+        const totesDates = datosWeb.datos_temporales[red]["Todos"].map(d => d.fecha);
+        let dataTall = "";
+        
+        if (rango !== "all" && totesDates.length > 0) {
+            let dt = new Date(totesDates[totesDates.length - 1]);
+            if (rango === "1m") dt.setMonth(dt.getMonth() - 1);
+            if (rango === "3m") dt.setMonth(dt.getMonth() - 3);
+            if (rango === "6m") dt.setMonth(dt.getMonth() - 6);
+            if (rango === "1y") dt.setFullYear(dt.getFullYear() - 1);
+            dataTall = dt.toISOString().split('T')[0];
+        }
+
+        const indexosValids = [];
+        totesDates.forEach((f, i) => { if (rango === "all" || f >= dataTall) indexosValids.push(i); });
+        
+        let datasets = [];
+        seleccionats.forEach((c, idx) => {
+            let dades = datosWeb.datos_temporales[red][c] || [];
+            let color = paletaGeneral[idx % paletaGeneral.length];
+            
+            // Mètrica 1
+            let vals1 = indexosValids.map(i => Number(dades[i]?.[m1] || 0));
+            datasets.push({
+                label: `${c !== "Todos" ? c : "Suma Total"} (${tradMetriques[m1]})`,
+                data: vals1,
+                borderColor: color,
+                backgroundColor: color + '20',
+                borderWidth: 2, tension: 0.3, fill: !m2,
+                pointRadius: 2
+            });
+
+            // Mètrica 2 (Comparteix exactament el mateix eix, línia punteada)
+            if (m2) {
+                let vals2 = indexosValids.map(i => Number(dades[i]?.[m2] || 0));
+                datasets.push({
+                    label: `${c !== "Todos" ? c : "Suma Total"} (${tradMetriques[m2]})`,
+                    data: vals2,
+                    borderColor: color,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2, borderDash: [5, 5], tension: 0.3, fill: false,
+                    pointRadius: 3, pointStyle: 'rectRot'
+                });
+            }
+        });
+
+        // Ara només tenim configurat l'eix "y" (mateixa escala per a tot)
+        chartEvo = new Chart(document.getElementById('evoChart'), {
+            type: 'line',
+            data: { labels: indexosValids.map(i => totesDates[i]), datasets: datasets },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    y: { 
+                        type: 'linear', display: true, position: 'left',
+                        beginAtZero: true,
+                        ticks: { callback: formatearNumero } 
+                    }
+                }, 
+                plugins: { tooltip: { mode: 'index', intersect: false } },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
         });
     }
 
-    function actualizarGrafica() {
-        if (!datosWeb) return;
+    // ==========================================
+    // PESTANYA 3: RÀNQUINGS I MATRIU
+    // ==========================================
+    function canviRedRanking() {
+        const red = document.getElementById("rk-red").value;
+        const selM = document.getElementById("rk-metrica");
+        selM.innerHTML = "";
+        diccMetriques[red].forEach(m => selM.innerHTML += `<option value="${m}">${tradMetriques[m]}</option>`);
+        actualitzarTabRanking();
+    }
 
-        const red = document.getElementById("select-red").value;
-        const metrica = document.getElementById("select-metrica").value;
-        const rango = document.getElementById("rango-tiempo").value;
-        
-        const checkboxes = document.querySelectorAll('#panel-creadores input[type="checkbox"]:checked');
-        const creadoresSeleccionados = Array.from(checkboxes).map(cb => cb.value);
+    function actualitzarTabRanking() {
+        actualitzarRanking();
+        actualitzarMatriu();
+    }
 
-        if (chartInstance) chartInstance.destroy();
-        if (creadoresSeleccionados.length === 0) return;
+    function actualitzarRanking() {
+        const red = document.getElementById("rk-red").value;
+        const metrica = document.getElementById("rk-metrica").value;
+        const anyo = document.getElementById("rk-anyo").value;
 
-        const todasLasFechas = datosWeb.datos_temporales[red]["Todos"].map(d => d.fecha);
-        
-        let fechaCorteStr = "";
-        if (rango !== "all" && todasLasFechas.length > 0) {
-            const ultimaFecha = new Date(todasLasFechas[todasLasFechas.length - 1]);
-            
-            if (rango === "1m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 1);
-            if (rango === "3m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 3);
-            if (rango === "6m") ultimaFecha.setMonth(ultimaFecha.getMonth() - 6);
-            if (rango === "1y") ultimaFecha.setFullYear(ultimaFecha.getFullYear() - 1);
-            
-            fechaCorteStr = ultimaFecha.toISOString().split('T')[0];
-        }
+        let dadesAgrp = [];
+        let creadors = Object.keys(datosWeb.datos_temporales[red] || {}).filter(c => c !== "Todos");
 
-        const indicesValidos = [];
-        todasLasFechas.forEach((fecha, index) => {
-            if (rango !== "all" && fecha < fechaCorteStr) return;
-            indicesValidos.push(index);
+        creadors.forEach(c => {
+            let total = 0;
+            let maxSeg = 0;
+            datosWeb.datos_temporales[red][c].forEach(row => {
+                if (anyo === "all" || row.fecha.startsWith(anyo)) {
+                    if (metrica === "seguidores") { if (Number(row[metrica]||0) > maxSeg) maxSeg = Number(row[metrica]); }
+                    else { total += Number(row[metrica] || 0); }
+                }
+            });
+            let valFinal = metrica === "seguidores" ? maxSeg : total;
+            if (valFinal > 0) dadesAgrp.push({ c: c, v: valFinal });
         });
 
-        const etiquetasFiltradas = indicesValidos.map(i => todasLasFechas[i]);
-        
-        const datasets = creadoresSeleccionados.map((creador, index) => {
-            const datosCreador = datosWeb.datos_temporales[red][creador] || [];
-            const valoresCompletos = datosCreador.map(d => d[metrica] || 0);
-            
-            const valoresFiltrados = indicesValidos.map(i => valoresCompletos[i]);
-            const color = colores[index % colores.length];
+        dadesAgrp.sort((a, b) => b.v - a.v);
+        let top10 = dadesAgrp.slice(0, 10);
 
-            return {
-                label: creador !== "Todos" ? creador : `Total Sumado`,
-                data: valoresFiltrados,
-                borderColor: color,
-                backgroundColor: color + '20',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: color,
-                pointRadius: 2,
-                pointHoverRadius: 6
-            };
+        if (chartRanking) chartRanking.destroy();
+        chartRanking = new Chart(document.getElementById('rankingChart'), {
+            type: 'bar',
+            data: { labels: top10.map(d => d.c), datasets: [{ data: top10.map(d => d.v), backgroundColor: paletaRanking, borderRadius: 4 }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: formatearNumero } } } }
+        });
+    }
+
+    function actualitzarMatriu() {
+        const red = document.getElementById("rk-red").value;
+        const anyo = document.getElementById("rk-anyo").value;
+        
+        let punts = [];
+        let creadors = Object.keys(datosWeb.datos_temporales[red] || {}).filter(c => c !== "Todos");
+
+        creadors.forEach(c => {
+            let maxSeg = 0, sumEng = 0;
+            datosWeb.datos_temporales[red][c].forEach(row => {
+                if (anyo === "all" || row.fecha.startsWith(anyo)) {
+                    if (Number(row.seguidores||0) > maxSeg) maxSeg = Number(row.seguidores);
+                    sumEng += Number(row.likes || 0) + Number(row.comentarios || 0);
+                }
+            });
+            if (maxSeg > 0 || sumEng > 0) {
+                punts.push({ label: c, x: maxSeg, y: sumEng, r: 8 });
+            }
         });
 
-        const ctx = document.getElementById('myChart').getContext('2d');
-        chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: etiquetasFiltradas,
-                datasets: datasets
-            },
+        if (chartScatter) chartScatter.destroy();
+        chartScatter = new Chart(document.getElementById('scatterChart'), {
+            type: 'bubble', 
+            data: { datasets: [{ label: 'Creadors', data: punts, backgroundColor: colorsXarxes[red] + '80', borderColor: colorsXarxes[red] }] },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
-                                if (value >= 1000) return (value / 1000).toFixed(1) + 'k';
-                                return value;
-                            }
-                        }
-                    }
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: { title: { display: true, text: 'Seguidors (Màx)' }, ticks: { callback: formatearNumero } },
+                    y: { title: { display: true, text: 'Engagement Acumulat' }, ticks: { callback: formatearNumero } }
                 },
                 plugins: {
-                    tooltip: { mode: 'index', intersect: false }
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { return `${ctx.raw.label}: Seguidors ${formatearNumero(ctx.raw.x)} | Eng: ${formatearNumero(ctx.raw.y)}`; } } }
+                }
+            }
+        });
+    }
+
+    // ==========================================
+    // PESTANYA 4: ADN DEL CREADOR (RADAR + BARRAS ANUALES)
+    // ==========================================
+    function actualitzarADN() {
+        if (!datosWeb) return;
+        const creador = document.getElementById("adn-creador").value;
+        const metricaGlobal = document.getElementById("adn-metrica").value; 
+        if (!creador) return;
+
+        // 1. Dades per al Radar (Totals històrics de cada red social)
+        let dadesRadar = [];
+        let etiquetesRadar = ["Instagram", "TikTok", "YouTube", "Twitch"];
+
+        // 2. Dades per a les Barres Anuals (Consolidat històric sumat per any)
+        // Creem un Calendari Universal per a tindre totes les dates exactes i sincronitzar
+        let setDatesUniversal = new Set();
+        xarxes.forEach(x => {
+            if(datosWeb.datos_temporales[x] && datosWeb.datos_temporales[x]["Todos"]) {
+                datosWeb.datos_temporales[x]["Todos"].forEach(d => setDatesUniversal.add(d.fecha));
+            }
+        });
+        let datesUniversalOrdenades = Array.from(setDatesUniversal).sort(); // Del passat al present
+        
+        // Creem un històric temporal consolidat (suma per día)
+        let historicTemporalConsolidat = new Array(datesUniversalOrdenades.length).fill(0);
+
+        xarxes.forEach(x => {
+            let totalRadar = 0;
+            let histCreadorRed = datosWeb.datos_temporales[x]?.[creador] || [];
+            
+            histCreadorRed.forEach(d => {
+                let valor = 0;
+                if (metricaGlobal === "seguidores") {
+                    valor = Number(d.seguidores || 0);
+                    // Per al radar, de seguidors ens quedem el pic màxim de cada xarxa
+                    if (valor > totalRadar) totalRadar = valor;
+                } else if (metricaGlobal === "views") {
+                    valor = Number(d.vistas || 0) + Number(d.visualizaciones || 0);
+                    totalRadar += valor;
+                } else if (metricaGlobal === "engagement") {
+                    valor = Number(d.likes || 0) + Number(d.comentarios || 0);
+                    totalRadar += valor;
+                }
+
+                // Sincronitzem temporalment per a la gràfica de línia consolidada
+                let indexCorrecte = datesUniversalOrdenades.indexOf(d.fecha);
+                if (indexCorrecte !== -1) {
+                    historicTemporalConsolidat[indexCorrecte] += valor;
+                }
+            });
+            dadesRadar.push(totalRadar);
+        });
+
+        // 🆕 3. ARA SÍ: LÒGICA PER A CREAR UNA BARRA PER ANY (CONSOLIDAT ANUAL)
+        // Agrupem el calendari per anys i ens quedem l'última entrada de cada any (per a volum)
+        // o sumem (per a engagement/vistes)
+        
+        let dadesBarresAnuals = {}; // { "2023": 1500, "2024": 2000... }
+
+        datesUniversalOrdenades.forEach((fecha, index) => {
+            let any = fecha.substring(0, 4);
+            let valorDía = historicTemporalConsolidat[index];
+
+            if (metricaGlobal === "seguidores") {
+                // Per a seguidors (volum), no sumem els dies, agafem el pic màxim registrat en eixe any
+                if (!dadesBarresAnuals[any] || valorDía > dadesBarresAnuals[any]) {
+                    dadesBarresAnuals[any] = valorDía;
+                }
+            } else {
+                // Per a vistes o engagement, sí que sumem el rendiment de tot l'any
+                if (!dadesBarresAnuals[any]) dadesBarresAnuals[any] = 0;
+                dadesBarresAnuals[any] += valorDía;
+            }
+        });
+
+        // Convertim el diccionari en llistes per a Chart.js, ordenades per any
+        let etiquetesBarresAnuals = Object.keys(dadesBarresAnuals).sort();
+        let valorsBarresAnuals = etiquetesBarresAnuals.map(a => dadesBarresAnuals[a]);
+
+
+        // --- Dibuixar Radar (S'ompli cap al centre si té zeros) ---
+        if (chartRadar) chartRadar.destroy();
+        chartRadar = new Chart(document.getElementById('radarChart'), {
+            type: 'radar',
+            data: {
+                labels: etiquetesRadar,
+                datasets: [{
+                    label: `Volum`,
+                    data: dadesRadar,
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    borderColor: '#007BFF',
+                    pointBackgroundColor: '#007BFF',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    r: { 
+                        beginAtZero: true, suggestedMax: 10, // SOLUCIÓ AL BUG: Força els ceros al centre
+                        ticks: { display: false }, pointLabels: { font: { size: 13, weight: 'bold' } } 
+                    } 
+                },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return formatearNumero(c.raw); } } } }
+            }
+        });
+
+        // --- Dibuixar Barres Anuals (Neteja absoluta de l'eix X) ---
+        if (chartAdnLine) chartAdnLine.destroy();
+        // Canviem el tipus de 'line' a 'bar'
+        chartAdnLine = new Chart(document.getElementById('adnLineChart'), {
+            type: 'bar', // ARA SÓN BARRES!
+            data: {
+                labels: etiquetesBarresAnuals, // ["2022", "2023", "2024"...]
+                datasets: [{
+                    label: `Marca Personal (Total Sumat)`,
+                    data: valorsBarresAnuals,
+                    borderColor: '#20C997',
+                    backgroundColor: '#20C997 + 50', // Verd degradat o semi-transparent
+                    backgroundColor: paletaRanking, // Colors blaus en gradient
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: {
+                        grid: { display: false }, // Llevam les línies verticals per a més netedat
+                        ticks: {
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    y: { beginAtZero: true, ticks: { callback: formatearNumero } } 
+                },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false } 
                 },
                 interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
         });
     }
-</script>
 
+    // Utils
+    function formatearNumero(value) {
+        if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+        if (value >= 1000) return (value / 1000).toFixed(1) + 'k';
+        return value;
+    }
+</script>
 </body>
 </html>

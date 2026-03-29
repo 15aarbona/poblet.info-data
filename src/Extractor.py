@@ -41,10 +41,10 @@ class Extractor:
         # self.df_youtube = self.df_youtube.iloc[3:4]
         # self.df_twitch = self.df_twitch.iloc[0:1]
 
-        self.fechas_cache_ig = self._obtener_fechas_cache("instagram", "nick_instagram")
-        self.fechas_cache_tk = self._obtener_fechas_cache("tiktok", "nick_tiktok")
-        self.fechas_cache_yt = self._obtener_fechas_cache("youtube", "nick_youtube")
-        self.fechas_cache_tw = self._obtener_fechas_cache("twitch", "nick_twitch")
+        self.ids_cache_ig = self._obtener_ids_cache("instagram", "nick_instagram", "post_id")
+        self.ids_cache_tk = self._obtener_ids_cache("tiktok", "nick_tiktok", "video_id")
+        self.ids_cache_yt = self._obtener_ids_cache("youtube", "nick_youtube", "id_video")
+        self.ids_cache_tw = self._obtener_ids_cache("twitch", "nick_twitch", "id_video")
 
     def _reportar_estado(self, red, creador, accion, total=None):
         if self.ui_callback:
@@ -55,14 +55,13 @@ class Extractor:
         df = df.dropna(subset=[f"nick_{red_social}"])
         return df
 
-    def _obtener_fechas_cache(self, red_social: str, col_nick: str) -> dict:
+    def _obtener_ids_cache(self, red_social: str, col_nick: str, col_id: str) -> dict:
         archivo = self.data_path / f"clean_{red_social}.parquet"
         if archivo.exists():
             try:
                 df = pd.read_parquet(archivo)
-                if not df.empty and col_nick in df.columns and 'fecha_publicacion' in df.columns:
-                    df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True, errors='coerce').dt.tz_localize(None)
-                    return df.groupby(col_nick)['fecha_publicacion'].max().to_dict()
+                if not df.empty and col_nick in df.columns and col_id in df.columns:
+                    return df.groupby(col_nick)[col_id].apply(lambda x: set(x.dropna().astype(str))).to_dict()
             except Exception:
                 pass
         return {}
@@ -150,7 +149,6 @@ class Extractor:
                 nicks = [str(n).lower().strip() for n in nicks if n]
                 if nicks and state['nick_limpio'] not in nicks:
                     self._registrar_anuncio(data, state)
-                    print(f"   🛡️ [ESCUT NICK] Anunci caçat (Pertany a {nicks[0] if nicks else 'desconegut'}). Afegit a Llista Negra.")
                     return 
                 
                 if es_formato_1: state['posts'].append(self._parsear_nodo_ig(data, state))
@@ -173,7 +171,7 @@ class Extractor:
         creador_nombre = fila['creador']
         nick_original = fila['nick_instagram']
         nick_limpio = str(nick_original).strip('/').split('?')[0]
-        fecha_limite = self.fechas_cache_ig.get(nick_original)
+        ids_conocidos = self.ids_cache_ig.get(nick_original, set())
         
         self._reportar_estado("IG", creador_nombre, "start")
         
@@ -182,68 +180,82 @@ class Extractor:
             'creador': creador_nombre, 'nick_orig': nick_original, 'nick_limpio': nick_limpio.lower()
         }
 
-        pagina = await contexto.new_page()
-        await pagina.route("**/*", self._bloquear_recursos_innecesarios)
-        pagina.on("response", self._crear_interceptor_ig(state))
+        try:
+            pagina = await contexto.new_page()
+            await pagina.route("**/*", self._bloquear_recursos_innecesarios)
+            pagina.on("response", self._crear_interceptor_ig(state))
 
-        url = f"https://www.instagram.com/{nick_limpio}/"
-        print(f"🌍 [IG] Entrant a @{nick_limpio}...")
-        try: 
-            await pagina.goto(url, timeout=20000)
-            await pagina.wait_for_selector("header", timeout=10000)
+            url = f"https://www.instagram.com/{nick_limpio}/"
+            print(f"[IG] Entrant a @{nick_limpio}...")
             
-            texto_cabecera = await pagina.locator("header").inner_text()
-            match = re.search(r'([\d\.,MKmk]+)\s*(seguidores|followers|mil seguidores)', texto_cabecera.replace('\n', ' '), re.IGNORECASE)
-            if match and state['followers'] == 0:
-                tl = str(match.group(1)).upper().replace(' ', '')
-                if 'M' in tl: state['followers'] = int(float(tl.replace('M', '').replace(',', '.')) * 1000000)
-                elif 'K' in tl: state['followers'] = int(float(tl.replace('K', '').replace(',', '.')) * 1000)
-                else: state['followers'] = int(''.join(c for c in tl if c.isdigit()) or 0)
-        except: pass
+            try: 
+                await pagina.goto(url, timeout=20000)
+                await pagina.wait_for_selector("header", timeout=10000)
+                
+                texto_cabecera = await pagina.locator("header").inner_text()
+                match = re.search(r'([\d\.,MKmk]+)\s*(seguidores|followers|mil seguidores)', texto_cabecera.replace('\n', ' '), re.IGNORECASE)
+                if match and state['followers'] == 0:
+                    tl = str(match.group(1)).upper().replace(' ', '')
+                    if 'M' in tl: state['followers'] = int(float(tl.replace('M', '').replace(',', '.')) * 1000000)
+                    elif 'K' in tl: state['followers'] = int(float(tl.replace('K', '').replace(',', '.')) * 1000)
+                    else: state['followers'] = int(''.join(c for c in tl if c.isdigit()) or 0)
+            except Exception as e:
+                print(f"[IG] Error al entrar a {nick_limpio}: {e}")
 
-        altura_anterior = await pagina.evaluate("document.body.scrollHeight")
-        intentos_sin_bajar = 0
+            altura_anterior = await pagina.evaluate("document.body.scrollHeight")
+            intentos_sin_bajar = 0
 
-        for i in range(100):
-            await pagina.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            
-            posts_antes = len(state['posts'])
-            for _ in range(25):
-                await asyncio.sleep(0.1)
-                if len(state['posts']) > posts_antes: break
-            
-            if fecha_limite and state['posts']:
-                fechas = [pd.to_datetime(p['fecha_publicacion'], utc=True).tz_localize(None) for p in state['posts'] if pd.notna(p['fecha_publicacion'])]
-                if fechas and min(fechas) <= fecha_limite: break
+            for i in range(100):
+                await pagina.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                
+                posts_antes = len(state['posts'])
+                for _ in range(25):
+                    await asyncio.sleep(0.1)
+                    if len(state['posts']) > posts_antes: break
+                
+                if ids_conocidos and state['posts']:
+                    ids_actuales = {str(p.get('post_id')) for p in state['posts'] if p.get('post_id')}
+                    if ids_actuales.intersection(ids_conocidos): 
+                        break 
 
-            altura_actual = await pagina.evaluate("document.body.scrollHeight")
-            if altura_actual == altura_anterior:
-                intentos_sin_bajar += 1
-                if intentos_sin_bajar >= 3: break
-            else:
-                intentos_sin_bajar = 0
-                altura_anterior = altura_actual
-        
-        await pagina.close()
-        
-        df = pd.DataFrame(state['posts'])
-        if not df.empty:
-            df = df.dropna(subset=['post_id'])
-            df = df[~df['post_id'].isin(state['blacklist'])]
-            df['seguidores'] = state['followers']
-            df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True).dt.tz_localize(None)
-            if fecha_limite: df = df[df['fecha_publicacion'] > fecha_limite] 
-            df = df.sort_values(by=['likes', 'comentarios'], ascending=[False, False]).drop_duplicates(subset=['post_id'], keep='first')
-            print(f"   ✅ [IG] {len(df)} posts NOUS de {creador_nombre}")
+                altura_actual = await pagina.evaluate("document.body.scrollHeight")
+                if altura_actual == altura_anterior:
+                    intentos_sin_bajar += 1
+                    if intentos_sin_bajar >= 3: break
+                else:
+                    intentos_sin_bajar = 0
+                    altura_anterior = altura_actual
             
-        self._reportar_estado("IG", creador_nombre, "done")
-        return df
+            await pagina.close()
+            
+            df = pd.DataFrame(state['posts'])
+            if not df.empty:
+                df = df.dropna(subset=['post_id'])
+                df = df[~df['post_id'].isin(state['blacklist'])]
+                df['seguidores'] = state['followers']
+                df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True).dt.tz_localize(None)
+                if ids_conocidos: df = df[~df['post_id'].astype(str).isin(ids_conocidos)]                
+                df = df.sort_values(by=['likes', 'comentarios'], ascending=[False, False]).drop_duplicates(subset=['post_id'], keep='first')
+                print(f"\t[IG] {len(df)} posts NOUS de {creador_nombre}")
+                
+            self._reportar_estado("IG", creador_nombre, "done")
+            return df
+
+        except Exception as e:
+            print(f"\t[IG] Error extraient a {creador_nombre}: {str(e)}")
+            
+            try:
+                await pagina.close()
+            except:
+                pass
+                
+            self._reportar_estado("IG", creador_nombre, "done")
+            return pd.DataFrame()
 
     async def _ejecutar_extraccion_instagram(self):
         print(f"\n🚀 Iniciant extracció d'Instagram...\n")
         todos_los_datos = []
         
-        # 🟢 Avisem a la GUI del total per a muntar el (0/80)
         self._reportar_estado("IG", "", "init", total=len(self.df_instagram))
         
         async with async_playwright() as p:
@@ -252,15 +264,17 @@ class Extractor:
                 args=["--disable-blink-features=AutomationControlled", "--disable-infobars"]
             )
             
-            # 🟢 El semàfor permetrà MÀXIM 3 al mateix temps
-            semaforo = asyncio.Semaphore(3)
+            semaforo = asyncio.Semaphore(4)
             
             async def procesar_con_semaforo(fila):
                 async with semaforo:
-                    # Quan hi ha lloc lliure, entra directament
-                    return await self._extraer_perfil_instagram_con_contexto(contexto, fila)
+                    df_res = await self._extraer_perfil_instagram_con_contexto(contexto, fila)
+                    if df_res is not None and not df_res.empty:
+                        todos_los_datos.append(df_res)
+                        try: pd.concat(todos_los_datos, ignore_index=True).to_parquet(self.data_path / "historico_instagram.parquet", index=False)
+                        except: pass
+                    return df_res
 
-            # Llancem TOTES les tasques de colp. El semàfor les ordena en la cua instantàniament.
             tareas = [asyncio.create_task(procesar_con_semaforo(fila)) for _, fila in self.df_instagram.iterrows()]
             resultados = await asyncio.gather(*tareas)
             
@@ -295,12 +309,12 @@ class Extractor:
         return interceptor
 
     async def _extraer_perfil_tiktok_con_contexto(self, contexto, fila):
-        import random # Per a les esperes aleatòries
+        import random
         
         creador_nombre = fila['creador']
         nick_original = fila['nick_tiktok'] 
         nick_limpio = str(nick_original).strip('/').replace('@', '').split('?')[0].lower()
-        fecha_limite = self.fechas_cache_tk.get(nick_original)
+        ids_conocidos = self.ids_cache_tk.get(nick_original, set())
         
         self._reportar_estado("TT", creador_nombre, "start")
         
@@ -312,38 +326,32 @@ class Extractor:
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             window.navigator.chrome = { runtime: {} };
         """)
-        # ---------------------------------
         
         await pagina.route("**/*", self._bloquear_recursos_innecesarios)
         pagina.on("response", self._crear_interceptor_tk(state))
         
         url = f"https://www.tiktok.com/@{nick_limpio}"
-        print(f"🌍 [TK] Entrant a @{nick_limpio}...")
+        print(f"[TK] Entrant a @{nick_limpio}...")
         
         max_intentos = 3
         cargado_con_exito = False
 
-        # 1. NAVEGAMOS UNA SOLA VEZ FUERA DEL BUCLE
         await asyncio.sleep(random.uniform(1.0, 3.0))
         try:
             await pagina.goto(url, timeout=15000, wait_until="domcontentloaded")
         except:
-            pass # Si da timeout inicial no pasa nada, el bucle lo detectará
+            pass 
             
-        # 2. BUCLE DE COMPROBACIÓN Y RESCATE
         for intento in range(max_intentos):
             try:
-                # Solo comprobamos si los elementos ya están en pantalla
                 await pagina.wait_for_selector('h2[data-e2e="user-title"], div[data-e2e="user-post-item"]', timeout=8000)
                 
-                # Si llega aquí, es que hay vídeos visibles. ¡Rompemos el bucle!
                 cargado_con_exito = True
                 break 
                 
             except Exception:
-                # Si no hay vídeos, intentamos el rescate
                 if intento < max_intentos - 1:
-                    print(f"⚠️ [TK] {creador_nombre} encallat. Intentant saltar bloqueig (Intent {intento + 2}/{max_intentos})...")
+                    print(f"\t[TK] {creador_nombre} encallat. Intentant saltar bloqueig (Intent {intento + 2}/{max_intentos})...")
                     try:
                         clic_exitoso = await pagina.evaluate('''() => {
                             let botones = Array.from(document.querySelectorAll('button'));
@@ -361,31 +369,27 @@ class Extractor:
                         }''')
                         
                         if clic_exitoso:
-                            print(f"   🔄 [TK] Botó trobat i polsat via codi intern!")
+                            pass
                         else:
                             await pagina.reload(timeout=15000, wait_until="domcontentloaded")
                     except Exception:
                         pass
                     
-                    # Le damos tiempo para que la página procese el clic del botón
                     temps_espera = random.uniform(4.5, 8.5)
                     await asyncio.sleep(temps_espera)
                     
-                    # Al terminar la espera, el bucle vuelve a subir e intenta el wait_for_selector otra vez
                 else:
-                    print(f"❌ [TK] Impossible carregar a {creador_nombre} després de {max_intentos} intents. Botant...")
+                    print(f"\t[TK] Impossible carregar a {creador_nombre} després de {max_intentos} intents. Botant...")
 
         if not cargado_con_exito:
             await pagina.close()
             self._reportar_estado("TT", creador_nombre, "done")
             return pd.DataFrame()
         
-        # --- A partir d'ací és el teu codi de scroll normal ---
         altura_anterior = await pagina.evaluate("document.body.scrollHeight")
         intentos_sin_bajar = 0
 
         for i in range(100):
-            # Espera humana entre scrolls
             await asyncio.sleep(random.uniform(0.5, 1.5))
             await pagina.evaluate("window.scrollBy(0, 1500)")
             
@@ -394,9 +398,10 @@ class Extractor:
                 await asyncio.sleep(0.1)
                 if len(state['videos']) > videos_antes: break
 
-            if fecha_limite and state['videos']:
-                fechas = [pd.to_datetime(v['fecha_publicacion'], utc=True).tz_localize(None) for v in state['videos'] if pd.notna(v['fecha_publicacion'])]
-                if fechas and min(fechas) <= fecha_limite: break
+            if ids_conocidos and state['videos']:
+                ids_actuales = {str(v.get('video_id')) for v in state['videos'] if v.get('video_id')}
+                if ids_actuales.intersection(ids_conocidos): 
+                    break
 
             altura_actual = await pagina.evaluate("document.body.scrollHeight")
             if altura_actual == altura_anterior:
@@ -412,17 +417,16 @@ class Extractor:
         if not df.empty:
             df = df.dropna(subset=['video_id']).drop_duplicates(subset=['video_id'])
             df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True).dt.tz_localize(None)
-            if fecha_limite: df = df[df['fecha_publicacion'] > fecha_limite]
-            print(f"   ✅ [TK] {len(df)} vídeos NOUS de {creador_nombre}")
+            if ids_conocidos: df = df[~df['video_id'].astype(str).isin(ids_conocidos)]            
+            print(f"\t[TK] {len(df)} vídeos NOUS de {creador_nombre}")
             
         self._reportar_estado("TT", creador_nombre, "done")
         return df
 
     async def _ejecutar_extraccion_tiktok(self):
-        print(f"\n🚀 Iniciant extracció de TikTok...\n")
+        print(f"\nIniciant extracció de TikTok...\n")
         todos_los_datos = []
         
-        # 🟢 Avisem a la GUI del total
         self._reportar_estado("TT", "", "init", total=len(self.df_tiktok))
         
         async with async_playwright() as p:
@@ -434,15 +438,14 @@ class Extractor:
                 args=["--disable-blink-features=AutomationControlled", "--disable-infobars"]
             )
             
-            # 🟢 PROCESAMENT 1 A 1 (Sense Semàfor ni Gather)
             for _, fila in self.df_tiktok.iterrows():
-                # Extraiem el creador i ESPEREM a que acabe completament
                 df_res = await self._extraer_perfil_tiktok_con_contexto(contexto, fila)
                 
                 if df_res is not None and not df_res.empty: 
                     todos_los_datos.append(df_res)
+                    try: pd.concat(todos_los_datos, ignore_index=True).to_parquet(self.data_path / "historico_tiktok.parquet", index=False)
+                    except: pass
                 
-                # Xicotet descans entre perfils per a paréixer més humans i no saturar TikTok
                 import random
                 await asyncio.sleep(random.uniform(2.5, 5.0))
                 
@@ -452,21 +455,28 @@ class Extractor:
         print(f"\n🎉 TIKTOK COMPLETAT.")
 
     def _extraccion_youtube(self):
-        print(f"\n▶️ Iniciant extracció de YouTube...\n")
+        print(f"\n▶Iniciant extracció de YouTube...\n")
         self._reportar_estado("YT", "", "init", total=len(self.df_youtube)) 
         
         historico_videos = []
         for c, row in self.df_youtube.iterrows():
             creador_nombre = row.get('creador')
             usuario_yt = row.get('nick_youtube') 
-            fecha_limite = self.fechas_cache_yt.get(usuario_yt)
+            
+            ids_conocidos = self.ids_cache_yt.get(usuario_yt, set())
             
             self._reportar_estado("YT", creador_nombre, "start")
             print(f"[YT] Extraient: {usuario_yt}...")
             handle_str = str(usuario_yt).strip()
             if not handle_str.startswith('@'): handle_str = f"@{handle_str}"
                 
-            ydl_opts_rapido = {'quiet': True, 'no_warnings': True, 'extract_flat': True}
+            ydl_opts_rapido = {
+                'quiet': True, 'no_warnings': True, 'extract_flat': True,
+                'sleep_interval_requests': 1,
+                'sleep_interval': 2,
+                'max_sleep_interval': 4
+            }
+
             try:
                 with yt_dlp.YoutubeDL(ydl_opts_rapido) as ydl:
                     info_canal = ydl.extract_info(f"https://www.youtube.com/{handle_str}/videos", download=False)
@@ -477,18 +487,25 @@ class Extractor:
                 self._reportar_estado("YT", creador_nombre, "done")
                 continue
 
-            ydl_opts_profundo = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+            ydl_opts_profundo = {
+                'quiet': True, 'no_warnings': True, 'ignoreerrors': True,
+                'sleep_interval_requests': 2, 
+                'sleep_interval': 4,          
+                'max_sleep_interval': 8       
+            }
             with yt_dlp.YoutubeDL(ydl_opts_profundo) as ydl:
-                for video_breve in lista_videos:
+                for (c, video_breve) in enumerate(lista_videos, start=1):
+                    
+                    if ids_conocidos and str(video_breve.get('id')) in ids_conocidos:
+                        print(f"\t[YT] Llegats als vídeos ja coneguts de {creador_nombre}. Parant scroll.")
+                        break
+                        
                     url_video = video_breve.get('url')
                     if not url_video: continue
                     try:
                         video = ydl.extract_info(url_video, download=False)
                         if video:
                             fecha_pub_str = video.get('upload_date')
-                            if fecha_pub_str:
-                                fecha_pub = pd.to_datetime(fecha_pub_str, format='%Y%m%d', errors='coerce')
-                                if fecha_limite and pd.notna(fecha_pub) and fecha_pub <= fecha_limite: break
 
                             historico_videos.append({
                                 "creador": creador_nombre, "nick_youtube": usuario_yt, "seguidores": subscriptores or 0,
@@ -496,15 +513,27 @@ class Extractor:
                                 "fecha_publicacion": fecha_pub_str, "visualizaciones": video.get('view_count', 0) or 0,
                                 "likes": video.get('like_count', 0) or 0, "duracion_segundos": video.get('duration')
                             })
-                    except Exception: pass 
+                            time.sleep(0.2)
+                    except Exception as e:
+                        print(f"\t[YT] Error Extraient el video: {e}")
+                    
+                    if c % 10 == 0: print(f"\t[YT] Processat {c}/{len(lista_videos)} videos...")
             
             self._reportar_estado("YT", creador_nombre, "done")
+            
+            if historico_videos:
+                try: 
+                    pd.DataFrame(historico_videos).to_parquet(self.data_path / "historico_youtube.parquet", index=False)
+                except Exception as e: 
+                    print(f"\t[YT] Error guardant dades temporals de YT: {e}")
+                    
+            time.sleep(3)
             
         self.df_youtube = pd.DataFrame(historico_videos) if historico_videos else pd.DataFrame()
         print(f"\n🎉 YOUTUBE COMPLETAT.")
     
     def _extraccion_twitch(self):
-        print(f"\n🎮 Iniciant extracció de Twitch...\n")
+        print(f"\nIniciant extracció de Twitch...\n")
         self._reportar_estado("YT", "", "init", total=len(self.df_youtube))
 
         historico_videos = []
@@ -513,10 +542,10 @@ class Extractor:
         for c, row in self.df_twitch.iterrows():
             creador_nombre = row.get('creador')
             usuario_twitch = row.get('nick_twitch') 
-            fecha_limite = self.fechas_cache_tw.get(usuario_twitch)
+            ids_conocidos = self.ids_cache_tw.get(usuario_twitch, set())
             
             self._reportar_estado("TW", creador_nombre, "start")
-            print(f"[TW] Extraient: {usuario_twitch}...")
+            print(f"\t[TW] Extraient: {usuario_twitch}...")
             login_clean = str(usuario_twitch).strip().replace('@', '')
             try:
                 user_info = requests.get(f"https://api.twitch.tv/helix/users?login={login_clean}", headers=headers).json().get('data', [])
@@ -538,7 +567,7 @@ class Extractor:
                     if 'data' in data and len(data['data']) > 0:
                         for v in data['data']:
                             fecha_pub = pd.to_datetime(v['created_at'], utc=True).tz_localize(None)
-                            if fecha_limite and fecha_pub <= fecha_limite:
+                            if ids_conocidos and str(v['id']) in ids_conocidos:
                                 detener = True
                                 break
                             historico_videos.append({
@@ -550,6 +579,12 @@ class Extractor:
                         if not cursor: break
                     else: break
             except Exception: pass
+
+            self._reportar_estado("TW", creador_nombre, "done")
+
+            if historico_videos:
+                try: pd.DataFrame(historico_videos).to_parquet(self.data_path / "historico_twitch.parquet", index=False)
+                except: pass
             
             self._reportar_estado("TW", creador_nombre, "done")
             
@@ -570,9 +605,9 @@ class Extractor:
 
     def extraction(self):
         async def main_pipeline():
-            print("\n=======================================================")
-            print("🚀 EXECUCIÓ DINÀMICA EN PARAL·LEL (Màx 2 tasques simultànies)")
-            print("=======================================================")
+            print("\n==========")
+            print("🚀 EXECUCIÓ")
+            print("============")
             
             pendientes = []
             if not self.df_instagram.empty:

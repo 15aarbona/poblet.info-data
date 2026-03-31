@@ -459,6 +459,9 @@ class PipelineApp(ctk.CTk):
         except Exception as e:
             print(f"\n[ERROR CRÍTIC] Excepció capturada durant l'execució: {e}")
         finally:
+            print("\n[PROCÉS] Generant arxiu web...")
+            cleaner._exportar_web()
+            print("[INFO] Arxiu web generat correctament.")
             sys.stdout = sys.__stdout__
             self.after(0, self._finalizar_interfaz_pipeline)
 

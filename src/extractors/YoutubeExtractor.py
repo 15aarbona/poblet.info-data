@@ -2,7 +2,7 @@ import pandas as pd
 import yt_dlp
 import time 
 
-from src.extractors.Extractor import Extractor
+from extractors.Extractor import Extractor
 
 class YoutubeExtractor(Extractor):
     def __init__(self, config_path="tokens.json", ui_callback=None):

@@ -7,7 +7,7 @@ import re
 import asyncio
 from playwright.async_api import async_playwright
 
-from src.extractors.Extractor import Extractor
+from extractors.Extractor import Extractor
 
 class InstagramExtractor(Extractor):
     def __init__(self, config_path="tokens.json", ui_callback=None):
@@ -115,7 +115,6 @@ class InstagramExtractor(Extractor):
         creador_nombre = fila['creador']
         nick_original = fila['nick_instagram']
         nick_limpio = str(nick_original).strip('/').split('?')[0]
-        ids_conocidos = self.ids_cache_ig.get(nick_original, set())
         
         self._reportar_estado("IG", creador_nombre, "start")
         
@@ -156,11 +155,6 @@ class InstagramExtractor(Extractor):
                 for _ in range(25):
                     await asyncio.sleep(0.1)
                     if len(state['posts']) > posts_antes: break
-                
-                if ids_conocidos and state['posts']:
-                    ids_actuales = {str(p.get('post_id')) for p in state['posts'] if p.get('post_id')}
-                    if ids_actuales.intersection(ids_conocidos): 
-                        break 
 
                 altura_actual = await pagina.evaluate("document.body.scrollHeight")
                 if altura_actual == altura_anterior:
@@ -178,7 +172,6 @@ class InstagramExtractor(Extractor):
                 df = df[~df['post_id'].isin(state['blacklist'])]
                 df['seguidores'] = state['followers']
                 df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True).dt.tz_localize(None)
-                if ids_conocidos: df = df[~df['post_id'].astype(str).isin(ids_conocidos)]                
                 df = df.sort_values(by=['likes', 'comentarios'], ascending=[False, False]).drop_duplicates(subset=['post_id'], keep='first')
                 print(f"\t[IG] {len(df)} posts NOUS de {creador_nombre}")
                 

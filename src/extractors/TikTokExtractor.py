@@ -2,7 +2,7 @@ import pandas as pd
 import asyncio
 from playwright.async_api import async_playwright
 
-from src.extractors.Extractor import Extractor
+from extractors.Extractor import Extractor
 
 class TikTokExtractor(Extractor):
     def __init__(self, config_path="tokens.json", ui_callback=None):
@@ -40,7 +40,6 @@ class TikTokExtractor(Extractor):
         creador_nombre = fila['creador']
         nick_original = fila['nick_tiktok'] 
         nick_limpio = str(nick_original).strip('/').replace('@', '').split('?')[0].lower()
-        ids_conocidos = self.ids_cache_tk.get(nick_original, set())
         
         self._reportar_estado("TT", creador_nombre, "start")
         
@@ -124,11 +123,6 @@ class TikTokExtractor(Extractor):
                 await asyncio.sleep(0.1)
                 if len(state['videos']) > videos_antes: break
 
-            if ids_conocidos and state['videos']:
-                ids_actuales = {str(v.get('video_id')) for v in state['videos'] if v.get('video_id')}
-                if ids_actuales.intersection(ids_conocidos): 
-                    break
-
             altura_actual = await pagina.evaluate("document.body.scrollHeight")
             if altura_actual == altura_anterior:
                 intentos_sin_bajar += 1
@@ -143,7 +137,6 @@ class TikTokExtractor(Extractor):
         if not df.empty:
             df = df.dropna(subset=['video_id']).drop_duplicates(subset=['video_id'])
             df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], utc=True).dt.tz_localize(None)
-            if ids_conocidos: df = df[~df['video_id'].astype(str).isin(ids_conocidos)]            
             print(f"\t[TK] {len(df)} vídeos NOUS de {creador_nombre}")
             
         self._reportar_estado("TT", creador_nombre, "done")

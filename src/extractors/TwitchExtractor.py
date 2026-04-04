@@ -1,7 +1,7 @@
 import pandas as pd
 import requests
 
-from src.extractors.Extractor import Extractor
+from extractors.Extractor import Extractor
 
 class TwitchExtractor(Extractor):
     def __init__(self, config_path="tokens.json", ui_callback=None):
@@ -37,7 +37,6 @@ class TwitchExtractor(Extractor):
         for c, row in self.df_twitch.iterrows():
             creador_nombre = row.get('creador')
             usuario_twitch = row.get('nick_twitch') 
-            ids_conocidos = self.ids_cache_tw.get(usuario_twitch, set())
             
             self._reportar_estado("TW", creador_nombre, "start")
             print(f"\t[TW] Extraient: {usuario_twitch}...")
@@ -65,11 +64,6 @@ class TwitchExtractor(Extractor):
                     data = response.json()
                     if 'data' in data and len(data['data']) > 0:
                         for v in data['data']:
-                            fecha_pub = pd.to_datetime(v['created_at'], utc=True).tz_localize(None)
-                            if ids_conocidos and str(v['id']) in ids_conocidos:
-                                detener = True
-                                break
-
                             historico_videos.append({
                                 "creador": creador_nombre, "nick_twitch": usuario_twitch, "seguidores": seguidores,
                                 "id_video": v['id'], "titulo": v['title'], "fecha_publicacion": v['created_at'],

@@ -1,0 +1,483 @@
+{
+  "run_count": 8,
+  "runs": [
+    {
+      "run_id": "20260410T192444Z",
+      "extracted_at": "2026-04-10T19:24:44.186160",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T192455Z",
+      "extracted_at": "2026-04-10T19:24:55.997557",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T193516Z",
+      "extracted_at": "2026-04-10T19:35:16.369639",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T193928Z",
+      "extracted_at": "2026-04-10T19:39:28.140693",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T194339Z",
+      "extracted_at": "2026-04-10T19:43:39.427276",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T202003Z",
+      "extracted_at": "2026-04-10T20:20:03.948601",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T202159Z",
+      "extracted_at": "2026-04-10T20:21:59.241364",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    },
+    {
+      "run_id": "20260410T202531Z",
+      "extracted_at": "2026-04-10T20:25:31.855555",
+      "total_contents": 1800,
+      "platforms": {
+        "instagram": {
+          "contents": 1043,
+          "visualizaciones": 18497941.0,
+          "likes": 337761.0,
+          "comentarios": 14369.0,
+          "seguidores": 9924.0
+        },
+        "tiktok": {
+          "contents": 498,
+          "visualizaciones": 1938162.0,
+          "likes": 64027.0,
+          "comentarios": 1712.0,
+          "seguidores": 2116.0
+        },
+        "twitch": {
+          "contents": 167,
+          "visualizaciones": 6557.0,
+          "likes": 0.0,
+          "comentarios": 0.0,
+          "seguidores": 1805.0
+        },
+        "youtube": {
+          "contents": 92,
+          "visualizaciones": 9022.0,
+          "likes": 510.0,
+          "comentarios": 75.0,
+          "seguidores": 135.0
+        }
+      }
+    }
+  ],
+  "chart_labels": [
+    "10/04 19:24",
+    "10/04 19:24",
+    "10/04 19:35",
+    "10/04 19:39",
+    "10/04 19:43",
+    "10/04 20:20",
+    "10/04 20:21",
+    "10/04 20:25"
+  ],
+  "series_visualizaciones": {
+    "instagram": [
+      18497941,
+      18497941,
+      18497941,
+      18497941,
+      18497941,
+      18497941,
+      18497941,
+      18497941
+    ],
+    "tiktok": [
+      1938162,
+      1938162,
+      1938162,
+      1938162,
+      1938162,
+      1938162,
+      1938162,
+      1938162
+    ],
+    "twitch": [
+      6557,
+      6557,
+      6557,
+      6557,
+      6557,
+      6557,
+      6557,
+      6557
+    ],
+    "youtube": [
+      9022,
+      9022,
+      9022,
+      9022,
+      9022,
+      9022,
+      9022,
+      9022
+    ]
+  },
+  "series_contents": {
+    "instagram": [
+      1043,
+      1043,
+      1043,
+      1043,
+      1043,
+      1043,
+      1043,
+      1043
+    ],
+    "tiktok": [
+      498,
+      498,
+      498,
+      498,
+      498,
+      498,
+      498,
+      498
+    ],
+    "twitch": [
+      167,
+      167,
+      167,
+      167,
+      167,
+      167,
+      167,
+      167
+    ],
+    "youtube": [
+      92,
+      92,
+      92,
+      92,
+      92,
+      92,
+      92,
+      92
+    ]
+  },
+  "series_likes": {
+    "instagram": [
+      337761,
+      337761,
+      337761,
+      337761,
+      337761,
+      337761,
+      337761,
+      337761
+    ],
+    "tiktok": [
+      64027,
+      64027,
+      64027,
+      64027,
+      64027,
+      64027,
+      64027,
+      64027
+    ],
+    "twitch": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "youtube": [
+      510,
+      510,
+      510,
+      510,
+      510,
+      510,
+      510,
+      510
+    ]
+  },
+  "series_seguidores": {
+    "instagram": [
+      9924,
+      9924,
+      9924,
+      9924,
+      9924,
+      9924,
+      9924,
+      9924
+    ],
+    "tiktok": [
+      2116,
+      2116,
+      2116,
+      2116,
+      2116,
+      2116,
+      2116,
+      2116
+    ],
+    "twitch": [
+      1805,
+      1805,
+      1805,
+      1805,
+      1805,
+      1805,
+      1805,
+      1805
+    ],
+    "youtube": [
+      135,
+      135,
+      135,
+      135,
+      135,
+      135,
+      135,
+      135
+    ]
+  },
+  "series_total_visualizaciones": [
+    20451682,
+    20451682,
+    20451682,
+    20451682,
+    20451682,
+    20451682,
+    20451682,
+    20451682
+  ],
+  "series_total_seguidores": [
+    13980,
+    13980,
+    13980,
+    13980,
+    13980,
+    13980,
+    13980,
+    13980
+  ]
+}

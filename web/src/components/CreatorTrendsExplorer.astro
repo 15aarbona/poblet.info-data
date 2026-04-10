@@ -1,0 +1,86 @@
+---
+import { randomUUID } from "node:crypto";
+import {
+  PLATFORM_COLORS_RGB,
+  type CreatorTimeseriesPayload,
+  type PlatformId,
+} from "../lib/creators";
+
+interface Props {
+  creador: string;
+  timeline: CreatorTimeseriesPayload;
+}
+
+const { creador, timeline } = Astro.props;
+const month = timeline.granularities.month.creators[creador];
+const week = timeline.granularities.week.creators[creador];
+const exploreUid = `ex-${randomUUID().replace(/-/g, "")}`;
+const chartId = `explore-${randomUUID().replace(/-/g, "")}`;
+
+const platKeys = new Set<string>([
+  ...Object.keys(month?.platforms ?? {}),
+  ...Object.keys(week?.platforms ?? {}),
+]);
+const platformColors: Record<string, string> = {};
+for (const p of platKeys) {
+  platformColors[p] = PLATFORM_COLORS_RGB[p as PlatformId] ?? "148, 163, 184";
+}
+
+const hasMonth = (month?.chart_labels?.length ?? 0) > 0;
+const hasWeek = (week?.chart_labels?.length ?? 0) > 0;
+
+let cfgEnc = "";
+if (hasMonth || hasWeek) {
+  cfgEnc = encodeURIComponent(
+    JSON.stringify({
+      granularities: {
+        month: {
+          chartLabels: month?.chart_labels ?? [],
+          bucketStartsIso: month?.bucket_starts_iso ?? [],
+          platforms: month?.platforms ?? {},
+        },
+        week: {
+          chartLabels: week?.chart_labels ?? [],
+          bucketStartsIso: week?.bucket_starts_iso ?? [],
+          platforms: week?.platforms ?? {},
+        },
+      },
+      defaultGranularity: timeline.default_granularity === "week" && hasWeek ? "week" : "month",
+      platformColors,
+    }),
+  );
+}
+---
+
+{
+  cfgEnc && (
+    <section class="mt-12">
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        Evolució per data de publicació
+      </h2>
+      {(month?.chart_labels?.length ?? 0) <= 1 && (week?.chart_labels?.length ?? 0) <= 1 && (
+        <p class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          Pocs períodes amb publicacions datades: el gràfic tindrà poc recorregut temporal. Les mètriques són les de
+          l’última extracció per cada peça al magatzem.
+        </p>
+      )}
+      <p class="mb-4 max-w-3xl text-xs text-zinc-500">
+        Eix temporal basat en <code class="rounded bg-zinc-800 px-1 font-mono text-[11px]">fecha_publicacion</code>{" "}
+        del parquet (una fila per contingut, darrera extracció). Suma de visualitzacions, m’agrada i comentaris per
+        mes o setmana; «peces» és el nombre de publicacions publicades en aquell període; «seguidors» és el màxim de
+        seguidors observat entre les peces d’aquel bucket. El període es talla amb presets (tot l’històric, últim any,
+        etc.); l’eix arriba sempre fins al període actual i els buckets sense dades es mostren com a zero.
+      </p>
+      <div
+        class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"
+        data-poblet-creator-explorer
+        data-explorer-uid={exploreUid}
+        data-poblet-cfg={cfgEnc}
+      >
+        <div class="h-96 w-full min-h-[24rem]">
+          <canvas id={chartId} />
+        </div>
+      </div>
+    </section>
+  )
+}

@@ -1,0 +1,181 @@
+{
+  "generated_at": "2026-04-10T20:25:31.855555",
+  "run_id": "20260410T202531Z",
+  "snapshot_rows": 1800,
+  "platforms": {
+    "instagram": {
+      "content_count": 1043,
+      "total_visualizaciones": 18497941.0,
+      "total_likes": 337761.0,
+      "total_comentarios": 14369.0,
+      "max_seguidores": 9924.0
+    },
+    "tiktok": {
+      "content_count": 498,
+      "total_visualizaciones": 1938162.0,
+      "total_likes": 64027.0,
+      "total_comentarios": 1712.0,
+      "max_seguidores": 2116.0
+    },
+    "youtube": {
+      "content_count": 92,
+      "total_visualizaciones": 9022.0,
+      "total_likes": 510.0,
+      "total_comentarios": 75.0,
+      "max_seguidores": 135.0
+    },
+    "twitch": {
+      "content_count": 167,
+      "total_visualizaciones": 6557.0,
+      "total_likes": 0.0,
+      "total_comentarios": 0.0,
+      "max_seguidores": 1805.0
+    }
+  },
+  "creators": [
+    {
+      "creador": "_elidamira",
+      "platform": "tiktok",
+      "content_count": 58,
+      "visualizaciones": 102822.0,
+      "likes": 7944.0,
+      "seguidores": 1170.0
+    },
+    {
+      "creador": "ainakoda",
+      "platform": "tiktok",
+      "content_count": 222,
+      "visualizaciones": 358777.0,
+      "likes": 10807.0,
+      "seguidores": 1199.0
+    },
+    {
+      "creador": "aitor_altea",
+      "platform": "twitch",
+      "content_count": 33,
+      "visualizaciones": 2702.0,
+      "likes": 0.0,
+      "seguidores": 1432.0
+    },
+    {
+      "creador": "Alvamoll7",
+      "platform": "youtube",
+      "content_count": 15,
+      "visualizaciones": 575.0,
+      "likes": 22.0,
+      "seguidores": 135.0
+    },
+    {
+      "creador": "Animals Polítics",
+      "platform": "youtube",
+      "content_count": 27,
+      "visualizaciones": 1489.0,
+      "likes": 87.0,
+      "seguidores": 70.0
+    },
+    {
+      "creador": "Açò és de cine",
+      "platform": "youtube",
+      "content_count": 23,
+      "visualizaciones": 3126.0,
+      "likes": 237.0,
+      "seguidores": 109.0
+    },
+    {
+      "creador": "Bar Trinquet",
+      "platform": "youtube",
+      "content_count": 27,
+      "visualizaciones": 3832.0,
+      "likes": 164.0,
+      "seguidores": 124.0
+    },
+    {
+      "creador": "De mica en mica. Dra. Aina Monferrer",
+      "platform": "instagram",
+      "content_count": 219,
+      "visualizaciones": 2214461.0,
+      "likes": 68940.0,
+      "seguidores": 8377.0
+    },
+    {
+      "creador": "Del Parpalló al Ventorro",
+      "platform": "instagram",
+      "content_count": 42,
+      "visualizaciones": 44936.0,
+      "likes": 2593.0,
+      "seguidores": 582.0
+    },
+    {
+      "creador": "Disfrutons",
+      "platform": "instagram",
+      "content_count": 92,
+      "visualizaciones": 6595661.0,
+      "likes": 149359.0,
+      "seguidores": 115.0
+    },
+    {
+      "creador": "Diàlegs amb Emma Tomàs",
+      "platform": "instagram",
+      "content_count": 355,
+      "visualizaciones": 6913540.0,
+      "likes": 28204.0,
+      "seguidores": 1284.0
+    },
+    {
+      "creador": "El Dolcet Pal Café",
+      "platform": "instagram",
+      "content_count": 335,
+      "visualizaciones": 2729343.0,
+      "likes": 88665.0,
+      "seguidores": 9924.0
+    },
+    {
+      "creador": "misstagless",
+      "platform": "twitch",
+      "content_count": 56,
+      "visualizaciones": 1587.0,
+      "likes": 0.0,
+      "seguidores": 1339.0
+    },
+    {
+      "creador": "simmer_valenciana",
+      "platform": "twitch",
+      "content_count": 32,
+      "visualizaciones": 1860.0,
+      "likes": 0.0,
+      "seguidores": 1805.0
+    },
+    {
+      "creador": "Viatge per les Terres Intermèdies",
+      "platform": "tiktok",
+      "content_count": 19,
+      "visualizaciones": 696494.0,
+      "likes": 890.0,
+      "seguidores": 68.0
+    },
+    {
+      "creador": "violistevalencia",
+      "platform": "twitch",
+      "content_count": 40,
+      "visualizaciones": 336.0,
+      "likes": 0.0,
+      "seguidores": 521.0
+    },
+    {
+      "creador": "Xusma Deluxe",
+      "platform": "tiktok",
+      "content_count": 199,
+      "visualizaciones": 780069.0,
+      "likes": 44386.0,
+      "seguidores": 2116.0
+    },
+    {
+      "creador": "yerayyvee07",
+      "platform": "twitch",
+      "content_count": 6,
+      "visualizaciones": 72.0,
+      "likes": 0.0,
+      "seguidores": 136.0
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+---
+import { randomUUID } from "node:crypto";
+
+export interface LineDataset {
+  label: string;
+  data: number[];
+  /** RGB sense prefix, ex. "129, 140, 248" */
+  color: string;
+}
+
+interface Props {
+  labels: string[];
+  datasets: LineDataset[];
+  title?: string;
+}
+const { labels, datasets, title = "" } = Astro.props;
+const chartId = `lc-${randomUUID()}`;
+const config = { labels, datasets, title };
+const encoded = encodeURIComponent(JSON.stringify(config));
+const show = datasets.length > 0 && labels.length > 0;
+---
+
+{
+  show && (
+    <div
+      class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"
+      data-poblet-chart="line"
+      data-chart-id={chartId}
+      data-poblet-cfg={encoded}
+    >
+      {title && <h3 class="mb-3 text-sm font-medium text-zinc-300">{title}</h3>}
+      <div class="h-80 w-full">
+        <canvas id={chartId} />
+      </div>
+    </div>
+  )
+}

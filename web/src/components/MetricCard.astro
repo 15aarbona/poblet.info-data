@@ -1,0 +1,22 @@
+---
+interface Props {
+  label: string;
+  value: string;
+  hint?: string;
+  href?: string;
+}
+const { label, value, hint, href } = Astro.props;
+const Tag = href ? "a" : "div";
+---
+
+<Tag
+  class:list={[
+    "block rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition",
+    href && "hover:border-indigo-500/40 hover:bg-zinc-900/70",
+  ]}
+  href={href}
+>
+  <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+  <p class="mt-1 font-mono text-2xl font-semibold tabular-nums text-white">{value}</p>
+  {hint && <p class="mt-1 text-xs text-zinc-500">{hint}</p>}
+</Tag>

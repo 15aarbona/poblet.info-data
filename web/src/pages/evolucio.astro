@@ -1,0 +1,225 @@
+---
+import Layout from "../layouts/Layout.astro";
+import LineChartMulti from "../components/LineChartMulti.astro";
+import history from "../data/dashboard/history.json";
+import { PLATFORM_COLORS_RGB, PLATFORM_ORDER, type PlatformId } from "../lib/creators";
+
+type HistoryFile = {
+  run_count: number;
+  runs: {
+    run_id: string;
+    extracted_at: string;
+    total_contents: number;
+    platforms: Record<
+      string,
+      {
+        contents: number;
+        visualizaciones: number;
+        likes: number;
+        comentarios: number;
+        seguidores: number;
+      }
+    >;
+  }[];
+  chart_labels: string[];
+  series_visualizaciones: Record<string, number[]>;
+  series_contents: Record<string, number[]>;
+  series_likes: Record<string, number[]>;
+  series_seguidores: Record<string, number[]>;
+  series_total_visualizaciones: number[];
+  series_total_seguidores: number[];
+};
+
+const h = history as HistoryFile;
+const fmt = new Intl.DateTimeFormat("ca-ES", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
+
+const hasPositive = (data: number[]) => data.some((v) => v > 0);
+
+const vizDatasets = PLATFORM_ORDER.filter((p) => h.series_visualizaciones[p]?.length)
+  .map((p) => ({
+    label: p.charAt(0).toUpperCase() + p.slice(1),
+    data: h.series_visualizaciones[p] ?? [],
+    color: PLATFORM_COLORS_RGB[p as PlatformId],
+  }))
+  .filter((d) => hasPositive(d.data));
+
+const contentDatasets = PLATFORM_ORDER.filter((p) => h.series_contents[p]?.length)
+  .map((p) => ({
+    label: p.charAt(0).toUpperCase() + p.slice(1),
+    data: h.series_contents[p] ?? [],
+    color: PLATFORM_COLORS_RGB[p as PlatformId],
+  }))
+  .filter((d) => hasPositive(d.data));
+
+const likesDatasets = PLATFORM_ORDER.filter((p) => h.series_likes[p]?.length)
+  .map((p) => ({
+    label: p.charAt(0).toUpperCase() + p.slice(1),
+    data: h.series_likes[p] ?? [],
+    color: PLATFORM_COLORS_RGB[p as PlatformId],
+  }))
+  .filter((d) => hasPositive(d.data));
+
+const seriesSeg = h.series_seguidores ?? {};
+const seguidoresDatasets = PLATFORM_ORDER.filter((p) => seriesSeg[p]?.length)
+  .map((p) => ({
+    label: p.charAt(0).toUpperCase() + p.slice(1),
+    data: seriesSeg[p] ?? [],
+    color: PLATFORM_COLORS_RGB[p as PlatformId],
+  }))
+  .filter((d) => hasPositive(d.data));
+
+const totalDataset =
+  h.series_total_visualizaciones.length > 0
+    ? [
+        {
+          label: "Total visualitzacions",
+          data: h.series_total_visualizaciones,
+          color: "52, 211, 153",
+        },
+      ]
+    : [];
+
+const seriesTotalSeg = h.series_total_seguidores ?? [];
+const totalSeguidoresDataset =
+  seriesTotalSeg.length > 0 && hasPositive(seriesTotalSeg)
+    ? [
+        {
+          label: "Suma de seguidors (màx. per plataforma per run)",
+          data: seriesTotalSeg,
+          color: "34, 197, 94",
+        },
+      ]
+    : [];
+---
+
+<Layout title="Evolució · Dashboard Poblet" description="Tendències entre extraccions del pipeline">
+  <div class="mb-8">
+    <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300">← Resum</a>
+    <h1 class="mt-3 text-3xl font-bold text-white">Evolució temporal</h1>
+    <p class="mt-2 max-w-2xl text-sm text-zinc-400">
+      Cada punt correspon a una execució del pipeline (<code class="rounded bg-zinc-800 px-1 font-mono text-xs"
+        >main.py</code
+      >). Les mètriques poden canviar en contingut antic quan les xarxes actualitzen comptadors.
+    </p>
+  </div>
+
+  {
+    h.run_count === 0 ? (
+      <div class="rounded-xl border border-zinc-700 bg-zinc-900/50 px-4 py-6 text-sm text-zinc-400">
+        No hi ha cap extracció al magatzem (<code class="font-mono text-zinc-500">data/warehouse/</code>).
+        Executa <code class="font-mono text-zinc-500">.venv/bin/python main.py</code> després de l’extracció.
+      </div>
+    ) : (
+      <>
+        {h.run_count < 2 && (
+          <div class="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            Només hi ha <strong>una</strong> extracció registrada. Torna a executar el pipeline en una altra data per
+            veure l’evolució entre runs (les mètriques de contingut antic també canvien).
+          </div>
+        )}
+        <section class="mb-10 space-y-8">
+          {totalDataset.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={totalDataset}
+              title="Visualitzacions totals (totes les plataformes)"
+            />
+          )}
+          {totalSeguidoresDataset.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={totalSeguidoresDataset}
+              title="Seguidors agregats (suma dels màxims per plataforma a cada run)"
+            />
+          )}
+          {vizDatasets.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={vizDatasets}
+              title="Visualitzacions per plataforma"
+            />
+          )}
+          {seguidoresDatasets.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={seguidoresDatasets}
+              title="Seguidors per plataforma (màxim al snapshot de cada run)"
+            />
+          )}
+          {contentDatasets.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={contentDatasets}
+              title="Nombre de peces de contingut per plataforma (per snapshot)"
+            />
+          )}
+          {likesDatasets.length > 0 && (
+            <LineChartMulti
+              labels={h.chart_labels}
+              datasets={likesDatasets}
+              title="M’agrada per plataforma (per snapshot)"
+            />
+          )}
+        </section>
+
+        <section>
+          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Llista d’extraccions
+          </h2>
+          <div class="overflow-hidden rounded-xl border border-zinc-800">
+            <table class="w-full text-left text-sm">
+              <thead class="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase text-zinc-500">
+                <tr>
+                  <th class="px-4 py-3 font-medium">Data extracció</th>
+                  <th class="px-4 py-3 font-medium">Run</th>
+                  <th class="px-4 py-3 font-medium text-right">Continguts</th>
+                  <th class="px-4 py-3 font-medium text-right">Vistes totals</th>
+                  <th class="px-4 py-3 font-medium text-right">Seguidors ∑</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800">
+                {[...h.runs]
+                  .slice()
+                  .reverse()
+                  .map((r) => {
+                    const totalV = Object.values(r.platforms).reduce(
+                      (a, p) => a + p.visualizaciones,
+                      0,
+                    );
+                    const totalS = Object.values(r.platforms).reduce(
+                      (a, p) => a + (p.seguidores ?? 0),
+                      0,
+                    );
+                    let dateLabel = r.extracted_at;
+                    try {
+                      dateLabel = fmt.format(new Date(r.extracted_at));
+                    } catch {
+                      /* keep */
+                    }
+                    return (
+                      <tr class="hover:bg-zinc-900/50">
+                        <td class="px-4 py-3 text-zinc-300">{dateLabel}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-zinc-500">{r.run_id}</td>
+                        <td class="px-4 py-3 text-right tabular-nums text-zinc-300">
+                          {r.total_contents}
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums text-zinc-200">
+                          {new Intl.NumberFormat("ca-ES").format(Math.round(totalV))}
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums text-emerald-300/90">
+                          {new Intl.NumberFormat("ca-ES").format(Math.round(totalS))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </>
+    )
+  }
+</Layout>

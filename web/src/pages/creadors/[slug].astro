@@ -1,0 +1,249 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BarChart from "../../components/BarChart.astro";
+import CreatorTrendsExplorer from "../../components/CreatorTrendsExplorer.astro";
+import summary from "../../data/dashboard/summary.json";
+import latest from "../../data/dashboard/latest_snapshot.json";
+import creatorTs from "../../data/dashboard/creator_timeseries.json";
+import {
+  comparePlatforms,
+  filterPositiveSeries,
+  formatContentKindLabel,
+  formatPlatformWithKind,
+  topContentForCreator,
+  slugMapForCreators,
+  type CreatorTimeseriesPayload,
+  type LatestSnapshotPayload,
+  type SummaryPayload,
+} from "../../lib/creators";
+
+export function getStaticPaths() {
+  const s = summary as SummaryPayload;
+  const names = [...new Set(s.creators.map((c) => c.creador))];
+  const nameToSlug = slugMapForCreators(names);
+  return [...nameToSlug.entries()].map(([creador, slug]) => ({
+    params: { slug },
+    props: { creador },
+  }));
+}
+
+interface Props {
+  creador: string;
+}
+const { creador } = Astro.props;
+const s = summary as SummaryPayload;
+const snap = latest as LatestSnapshotPayload;
+const timeline = creatorTs as CreatorTimeseriesPayload;
+const rows = [...s.creators.filter((c) => c.creador === creador)].sort((a, b) =>
+  comparePlatforms(a.platform, b.platform),
+);
+
+const fmt = new Intl.NumberFormat("ca-ES");
+const fmtDate = new Intl.DateTimeFormat("ca-ES", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
+const chartLabels = rows.map((r) =>
+  r.platform.charAt(0).toUpperCase() + r.platform.slice(1),
+);
+const chartViews = rows.map((r) => Math.round(r.visualizaciones));
+const chartLikes = rows.map((r) => Math.round(r.likes));
+const viewsBars = filterPositiveSeries(chartLabels, chartViews);
+const likesBars = filterPositiveSeries(chartLabels, chartLikes);
+const chartSeguidores = rows.map((r) => Math.round(r.seguidores ?? 0));
+const seguidoresBars = filterPositiveSeries(chartLabels, chartSeguidores);
+
+const totalViews = rows.reduce((a, r) => a + r.visualizaciones, 0);
+const totalContent = rows.reduce((a, r) => a + r.content_count, 0);
+const totalSeguidores = rows.reduce((a, r) => a + (r.seguidores ?? 0), 0);
+const top = topContentForCreator(snap.rows, creador, 10);
+const showLikesColTop = top.some((r) => (r.likes ?? 0) > 0);
+const showComColTop = top.some((r) => (r.comentarios ?? 0) > 0);
+const showLikesDetail = rows.some((r) => r.likes > 0);
+const showSeguidoresDetail = rows.some((r) => (r.seguidores ?? 0) > 0);
+---
+
+<Layout title={`${creador} · Dashboard Poblet`}>
+  <div class="mb-8">
+    <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
+      <a href="/" class="hover:text-zinc-300">← Resum</a>
+      <a href="/creadors" class="hover:text-zinc-300">← Tots els creadors</a>
+    </div>
+    <h1 class="mt-3 text-3xl font-bold text-white">{creador}</h1>
+    <p class="mt-2 text-sm text-zinc-400">
+      <span class="tabular-nums">{fmt.format(Math.round(totalViews))}</span> visualitzacions totals
+      · <span class="tabular-nums">{fmt.format(totalContent)}</span> continguts (últim snapshot)
+      {totalSeguidores > 0 && (
+        <>
+          {" "}
+          · <span class="tabular-nums">{fmt.format(Math.round(totalSeguidores))}</span> seguidors (suma de màx. per
+          xarxa al resum)
+        </>
+      )}
+    </p>
+  </div>
+
+  {
+    rows.length > 0 && (
+      <section class="mb-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        {viewsBars.labels.length > 0 && (
+          <BarChart
+            labels={viewsBars.labels}
+            values={viewsBars.values}
+            title="Visualitzacions per plataforma"
+            color="56, 189, 248"
+          />
+        )}
+        {likesBars.labels.length > 0 && (
+          <BarChart
+            labels={likesBars.labels}
+            values={likesBars.values}
+            title="M’agrada per plataforma"
+            color="251, 191, 36"
+          />
+        )}
+        {seguidoresBars.labels.length > 0 && (
+          <BarChart
+            labels={seguidoresBars.labels}
+            values={seguidoresBars.values}
+            title="Seguidors per plataforma (màx. al resum)"
+            color="34, 197, 94"
+          />
+        )}
+      </section>
+    )
+  }
+
+  <CreatorTrendsExplorer creador={creador} timeline={timeline} />
+
+  <section>
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      Detall per xarxa
+    </h2>
+    <div class="overflow-hidden rounded-xl border border-zinc-800">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <tr>
+            <th class="px-4 py-3 font-medium">Plataforma</th>
+            <th class="px-4 py-3 font-medium text-right">Continguts</th>
+            <th class="px-4 py-3 font-medium text-right">Visualitzacions</th>
+            {showSeguidoresDetail && <th class="px-4 py-3 font-medium text-right">Seguidors</th>}
+            {showLikesDetail && <th class="px-4 py-3 font-medium text-right">M’agrada</th>}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800">
+          {rows.map((row) => (
+            <tr class="hover:bg-zinc-900/50">
+              <td class="px-4 py-3">
+                <a
+                  href={`/plataformes/${row.platform}`}
+                  class="capitalize text-indigo-300 hover:text-indigo-200 hover:underline"
+                >
+                  {row.platform}
+                </a>
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums text-zinc-300">
+                {fmt.format(row.content_count)}
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums text-zinc-200">
+                {fmt.format(Math.round(row.visualizaciones))}
+              </td>
+              {showSeguidoresDetail && (
+                <td class="px-4 py-3 text-right tabular-nums text-emerald-300/90">
+                  {(row.seguidores ?? 0) > 0 ? fmt.format(Math.round(row.seguidores)) : "—"}
+                </td>
+              )}
+              {showLikesDetail && (
+                <td class="px-4 py-3 text-right tabular-nums text-zinc-400">
+                  {fmt.format(Math.round(row.likes))}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {
+    top.length > 0 && (
+      <section class="mt-12">
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Top 10 publicacions (per visualitzacions)
+        </h2>
+        <p class="mb-4 text-xs text-zinc-500">
+          Darrer snapshot; format distingit per a Instagram (Reel / publicació) i YouTube (Short / vídeo).
+        </p>
+        <div class="overflow-hidden rounded-xl border border-zinc-800">
+          <table class="w-full text-left text-sm">
+            <thead class="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase text-zinc-500">
+              <tr>
+                <th class="px-4 py-3 font-medium">Publicació</th>
+                <th class="px-4 py-3 font-medium">Plataforma</th>
+                <th class="px-4 py-3 font-medium">Format / títol</th>
+                <th class="px-4 py-3 font-medium text-right">Vistes</th>
+                {showLikesColTop && <th class="px-4 py-3 font-medium text-right">M’agrada</th>}
+                {showComColTop && <th class="px-4 py-3 font-medium text-right">Comentaris</th>}
+                <th class="px-4 py-3 font-medium text-right">Enllaç</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800">
+              {top.map((r) => {
+                let pubLabel = "—";
+                if (r.fecha_publicacion) {
+                  try {
+                    pubLabel = fmtDate.format(new Date(r.fecha_publicacion));
+                  } catch {
+                    pubLabel = r.fecha_publicacion;
+                  }
+                }
+                const kindLabel = formatContentKindLabel(r);
+                const titulo = r.titulo?.trim();
+                const formatCell =
+                  titulo && r.platform === "twitch"
+                    ? titulo
+                    : [kindLabel, titulo].filter(Boolean).join(" · ") || "—";
+                return (
+                  <tr class="hover:bg-zinc-900/50">
+                    <td class="whitespace-nowrap px-4 py-3 text-zinc-400">{pubLabel}</td>
+                    <td class="px-4 py-3 text-zinc-300">{formatPlatformWithKind(r)}</td>
+                    <td class="max-w-[16rem] truncate px-4 py-3 text-zinc-300" title={formatCell}>
+                      {formatCell}
+                    </td>
+                    <td class="px-4 py-3 text-right tabular-nums text-zinc-200">
+                      {r.visualizaciones != null ? fmt.format(Math.round(r.visualizaciones)) : "—"}
+                    </td>
+                    {showLikesColTop && (
+                      <td class="px-4 py-3 text-right tabular-nums text-zinc-400">
+                        {r.likes != null ? fmt.format(Math.round(r.likes)) : "—"}
+                      </td>
+                    )}
+                    {showComColTop && (
+                      <td class="px-4 py-3 text-right tabular-nums text-zinc-400">
+                        {r.comentarios != null ? fmt.format(Math.round(r.comentarios)) : "—"}
+                      </td>
+                    )}
+                    <td class="px-4 py-3 text-right">
+                      {r.url ? (
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-indigo-300 hover:text-indigo-200 hover:underline"
+                        >
+                          Obrir
+                        </a>
+                      ) : (
+                        <span class="text-zinc-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+</Layout>

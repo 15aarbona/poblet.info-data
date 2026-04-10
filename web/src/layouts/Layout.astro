@@ -1,0 +1,80 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "Mètriques agregades del pipeline social" } = Astro.props;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+  </head>
+  <body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+    <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+        <a href="/" class="text-lg font-semibold tracking-tight text-white hover:text-indigo-300">
+          Poblet · Dashboard
+        </a>
+        <nav class="flex flex-wrap items-center gap-1 text-sm">
+          <a
+            href="/"
+            class:list={[
+              "rounded-lg px-3 py-1.5 transition",
+              path === "/" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:bg-zinc-800/60 hover:text-white",
+            ]}>Resum</a
+          >
+          <a
+            href="/evolucio"
+            class:list={[
+              "rounded-lg px-3 py-1.5 transition",
+              path === "/evolucio" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:bg-zinc-800/60 hover:text-white",
+            ]}>Evolució</a
+          >
+          <a
+            href="/creadors"
+            class:list={[
+              "rounded-lg px-3 py-1.5 transition",
+              path === "/creadors" || path.startsWith("/creadors/")
+                ? "bg-zinc-800 text-white"
+                : "text-zinc-400 hover:bg-zinc-800/60 hover:text-white",
+            ]}>Creadors</a
+          >
+          <span class="px-1 text-zinc-600">|</span>
+          {["instagram", "tiktok", "youtube", "twitch"].map((p) => (
+            <a
+              href={`/plataformes/${p}`}
+              class:list={[
+                "rounded-lg px-2 py-1 capitalize transition",
+                path === `/plataformes/${p}`
+                  ? "bg-indigo-600/30 text-indigo-200"
+                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-white",
+              ]}
+            >
+              {p}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </header>
+    <main class="mx-auto max-w-6xl px-4 py-10">
+      <slot />
+    </main>
+    <footer class="border-t border-zinc-800 py-8 text-center text-xs text-zinc-500">
+      Dades generades pel pipeline local · sense servidor en temps real
+    </footer>
+    <script>
+      import "../scripts/chartjs-mount";
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @import "../styles/global.css";
+</style>

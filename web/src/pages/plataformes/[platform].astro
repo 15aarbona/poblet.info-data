@@ -1,0 +1,239 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import MetricCard from "../../components/MetricCard.astro";
+import BarChart from "../../components/BarChart.astro";
+import summary from "../../data/dashboard/summary.json";
+import latest from "../../data/dashboard/latest_snapshot.json";
+import {
+  filterPositiveSeries,
+  slugMapForCreators,
+  type LatestSnapshotPayload,
+  type SummaryPayload,
+} from "../../lib/creators";
+
+export function getStaticPaths() {
+  return (["instagram", "tiktok", "youtube", "twitch"] as const).map((platform) => ({
+    params: { platform },
+  }));
+}
+
+const { platform } = Astro.params;
+const s = summary as SummaryPayload;
+const snap = latest as LatestSnapshotPayload;
+const p = platform ? s.platforms[platform] : undefined;
+if (!platform || !p) {
+  return Astro.redirect("/");
+}
+
+const fmt = new Intl.NumberFormat("ca-ES");
+const titleCase = platform.charAt(0).toUpperCase() + platform.slice(1);
+
+const byCreator = s.creators
+  .filter((c) => c.platform === platform)
+  .sort((a, b) => b.visualizaciones - a.visualizaciones);
+
+const top = filterPositiveSeries(
+  byCreator.slice(0, 14).map((r) => r.creador),
+  byCreator.slice(0, 14).map((r) => Math.round(r.visualizaciones)),
+);
+
+const byLikesPositive = [...byCreator].filter((c) => c.likes > 0).sort((a, b) => b.likes - a.likes).slice(0, 14);
+const topByLikes = filterPositiveSeries(
+  byLikesPositive.map((r) => r.creador),
+  byLikesPositive.map((r) => Math.round(r.likes)),
+);
+
+const bySegPositive = [...byCreator].filter((c) => (c.seguidores ?? 0) > 0).sort((a, b) => b.seguidores - a.seguidores).slice(0, 14);
+const topBySeguidores = filterPositiveSeries(
+  bySegPositive.map((r) => r.creador),
+  bySegPositive.map((r) => Math.round(r.seguidores)),
+);
+
+const slugMap = slugMapForCreators(s.creators.map((c) => c.creador));
+
+const showLikes = p.total_likes > 0;
+const maxSeg = p.max_seguidores ?? 0;
+const showSeguidores = maxSeg > 0;
+
+const platRows = snap.rows.filter((r) => r.platform === platform);
+let typeLabels: string[] = [];
+let typeValues: number[] = [];
+if (platform === "instagram") {
+  let reels = 0;
+  let posts = 0;
+  let altres = 0;
+  for (const r of platRows) {
+    const t = (r.tipo_publicacion ?? "").toUpperCase();
+    if (t === "REEL") reels++;
+    else if (t === "PUBLICACION") posts++;
+    else altres++;
+  }
+  typeLabels = ["Reels", "Publicacions"];
+  typeValues = [reels, posts];
+  if (altres > 0) {
+    typeLabels.push("Altres formats");
+    typeValues.push(altres);
+  }
+} else if (platform === "youtube") {
+  let shorts = 0;
+  let videos = 0;
+  let altres = 0;
+  for (const r of platRows) {
+    const t = (r.tipo_publicacion ?? "").toUpperCase();
+    if (t === "SHORT") shorts++;
+    else if (t === "VIDEO") videos++;
+    else altres++;
+  }
+  typeLabels = ["Shorts", "Vídeos llargs"];
+  typeValues = [shorts, videos];
+  if (altres > 0) {
+    typeLabels.push("Altres formats");
+    typeValues.push(altres);
+  }
+}
+const typeBreakdown = filterPositiveSeries(typeLabels, typeValues);
+---
+
+<Layout title={`${titleCase} · Dashboard Poblet`}>
+  <div class="mb-8">
+    <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300">← Resum</a>
+    <h1 class="mt-3 text-3xl font-bold capitalize text-white">{platform}</h1>
+  </div>
+
+  <section class="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <MetricCard label="Continguts" value={fmt.format(p.content_count)} />
+    <MetricCard
+      label="Visualitzacions"
+      value={fmt.format(Math.round(p.total_visualizaciones))}
+    />
+    {
+      showSeguidores && (
+        <MetricCard
+          label="Seguidors (màx. al snapshot)"
+          value={fmt.format(Math.round(maxSeg))}
+          hint="Màxim entre files d’aquesta xarxa"
+        />
+      )
+    }
+    {
+      showLikes && (
+        <MetricCard label="M’agrada" value={fmt.format(Math.round(p.total_likes))} />
+      )
+    }
+    {p.total_comentarios > 0 && (
+      <MetricCard label="Comentaris" value={fmt.format(Math.round(p.total_comentarios))} />
+    )}
+  </section>
+
+  {
+    (platform === "instagram" || platform === "youtube") && typeBreakdown.labels.length > 0 && (
+      <section class="mb-10">
+        <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          {platform === "instagram" ? "Reels vs publicacions" : "Shorts vs vídeos"}
+        </h2>
+        <p class="mb-4 max-w-2xl text-xs text-zinc-500">
+          Distribució al darrer snapshot (comptador de peces per tipus).
+        </p>
+        <div class="max-w-xl">
+          <BarChart
+            labels={typeBreakdown.labels}
+            values={typeBreakdown.values}
+            title={platform === "instagram" ? "Continguts per format (Instagram)" : "Continguts per format (YouTube)"}
+            color="167, 139, 250"
+          />
+        </div>
+      </section>
+    )
+  }
+
+  {
+    top.labels.length > 0 && (
+      <section class="mb-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <BarChart
+          labels={top.labels}
+          values={top.values}
+          title="Top creadors per visualitzacions"
+          horizontal={true}
+          color="244, 114, 182"
+        />
+        {topByLikes.labels.length > 0 ? (
+          <BarChart
+            labels={topByLikes.labels}
+            values={topByLikes.values}
+            title="Top creadors per m’agrada"
+            horizontal={true}
+            color="251, 191, 36"
+          />
+        ) : (
+          <div class="flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center text-sm text-zinc-500">
+            {showLikes
+              ? "No hi ha m’agrada amb valor al resum per als creadors d’aquesta plataforma."
+              : "Aquesta plataforma no exposa m’agrada al dataset (p. ex. Twitch)."}
+          </div>
+        )}
+        {topBySeguidores.labels.length > 0 ? (
+          <BarChart
+            labels={topBySeguidores.labels}
+            values={topBySeguidores.values}
+            title="Top creadors per seguidors (màx. al resum)"
+            horizontal={true}
+            color="34, 197, 94"
+          />
+        ) : (
+          <div class="flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center text-sm text-zinc-500">
+            No hi ha dades de seguidors per als creadors d’aquesta plataforma al resum.
+          </div>
+        )}
+      </section>
+    )
+  }
+
+  <section>
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      Tots els creadors
+    </h2>
+    <div class="overflow-hidden rounded-xl border border-zinc-800">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <tr>
+            <th class="px-4 py-3 font-medium">Creador</th>
+            <th class="px-4 py-3 font-medium text-right">Continguts</th>
+            <th class="px-4 py-3 font-medium text-right">Visualitzacions</th>
+            {showSeguidores && <th class="px-4 py-3 font-medium text-right">Seguidors</th>}
+            {showLikes && <th class="px-4 py-3 font-medium text-right">M’agrada</th>}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800">
+          {byCreator.map((row) => (
+            <tr class="hover:bg-zinc-900/50">
+              <td class="px-4 py-3">
+                <a
+                  href={`/creadors/${slugMap.get(row.creador)!}`}
+                  class="text-indigo-300 hover:text-indigo-200 hover:underline"
+                >
+                  {row.creador}
+                </a>
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums text-zinc-300">
+                {fmt.format(row.content_count)}
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums text-zinc-200">
+                {fmt.format(Math.round(row.visualizaciones))}
+              </td>
+              {showSeguidores && (
+                <td class="px-4 py-3 text-right tabular-nums text-emerald-300/90">
+                  {(row.seguidores ?? 0) > 0 ? fmt.format(Math.round(row.seguidores)) : "—"}
+                </td>
+              )}
+              {showLikes && (
+                <td class="px-4 py-3 text-right tabular-nums text-zinc-400">
+                  {fmt.format(Math.round(row.likes))}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>

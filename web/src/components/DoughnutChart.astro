@@ -1,0 +1,44 @@
+---
+import { randomUUID } from "node:crypto";
+
+interface Props {
+  labels: string[];
+  values: number[];
+  title?: string;
+  /** RGB sense prefix, mateix ordre que labels; per defecte paleta neutra */
+  colors?: string[];
+}
+const { labels, values, title = "", colors } = Astro.props;
+const chartId = `d-${randomUUID()}`;
+const fallback = [
+  "129, 140, 248",
+  "52, 211, 153",
+  "251, 191, 36",
+  "244, 114, 182",
+  "56, 189, 248",
+  "167, 139, 250",
+  "148, 163, 184",
+];
+const resolvedColors =
+  colors ??
+  labels.map((_, i) => fallback[i % fallback.length]!);
+const config = { labels, values, colors: resolvedColors };
+const encoded = encodeURIComponent(JSON.stringify(config));
+const show = labels.length > 0 && values.length > 0;
+---
+
+{
+  show && (
+    <div
+      class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"
+      data-poblet-chart="doughnut"
+      data-chart-id={chartId}
+      data-poblet-cfg={encoded}
+    >
+      {title && <h3 class="mb-3 text-sm font-medium text-zinc-300">{title}</h3>}
+      <div class="mx-auto flex h-72 max-w-md items-center justify-center">
+        <canvas id={chartId} class="max-h-full max-w-full" />
+      </div>
+    </div>
+  )
+}

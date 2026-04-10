@@ -11,6 +11,13 @@ wheels/
 
 tokens.json
 data/*
-src/pruebas/*
+
+# Pipeline (Python)
+pipeline/pruebas/*
 tiktok_session/*
 instagram_session/*
+
+# Dashboard (Astro) — el codi viu a web/
+web/node_modules/
+web/dist/
+web/.astro/

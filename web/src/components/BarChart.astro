@@ -1,0 +1,32 @@
+---
+import { randomUUID } from "node:crypto";
+
+interface Props {
+  labels: string[];
+  values: number[];
+  title?: string;
+  horizontal?: boolean;
+  color?: string;
+}
+const { labels, values, title = "", horizontal = false, color = "99, 102, 241" } = Astro.props;
+const chartId = `c-${randomUUID()}`;
+const config = { labels, values, title, horizontal, color };
+const encoded = encodeURIComponent(JSON.stringify(config));
+const show = labels.length > 0 && values.length > 0;
+---
+
+{
+  show && (
+    <div
+      class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"
+      data-poblet-chart="bar"
+      data-chart-id={chartId}
+      data-poblet-cfg={encoded}
+    >
+      {title && <h3 class="mb-3 text-sm font-medium text-zinc-300">{title}</h3>}
+      <div class:list={["w-full", horizontal ? "h-[min(28rem,60vh)]" : "h-72"]}>
+        <canvas id={chartId} />
+      </div>
+    </div>
+  )
+}

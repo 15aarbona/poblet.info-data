@@ -1,0 +1,248 @@
+---
+import Layout from "../layouts/Layout.astro";
+import MetricCard from "../components/MetricCard.astro";
+import BarChart from "../components/BarChart.astro";
+import DoughnutChart from "../components/DoughnutChart.astro";
+import summary from "../data/dashboard/summary.json";
+import {
+  aggregateCreators,
+  filterPositiveSeries,
+  formatPlatformCardHint,
+  PLATFORM_COLORS_RGB,
+  PLATFORM_ORDER,
+  slugMapForCreators,
+  type PlatformId,
+  type SummaryPayload,
+} from "../lib/creators";
+
+const s = summary as SummaryPayload;
+const fmt = new Intl.NumberFormat("ca-ES");
+const fmtDate = new Intl.DateTimeFormat("ca-ES", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const activePlatforms = PLATFORM_ORDER.filter((p) => s.platforms[p]);
+const chartLabels = activePlatforms.map(
+  (p) => p.charAt(0).toUpperCase() + p.slice(1),
+);
+const chartViews = activePlatforms.map((p) => s.platforms[p].total_visualizaciones);
+const chartContents = activePlatforms.map((p) => s.platforms[p].content_count);
+const doughnutColors = activePlatforms.map((p) => PLATFORM_COLORS_RGB[p as PlatformId]);
+const chartLikes = activePlatforms.map((p) => s.platforms[p].total_likes);
+const chartComments = activePlatforms.map((p) => s.platforms[p].total_comentarios);
+const chartSeguidores = activePlatforms.map((p) => s.platforms[p].max_seguidores ?? 0);
+
+const viewsF = filterPositiveSeries(
+  chartLabels,
+  chartViews.map((v) => Math.round(v)),
+  doughnutColors,
+);
+const contentsF = filterPositiveSeries(chartLabels, chartContents);
+const likesF = filterPositiveSeries(chartLabels, chartLikes.map((v) => Math.round(v)));
+const commentsF = filterPositiveSeries(chartLabels, chartComments.map((v) => Math.round(v)));
+const seguidoresF = filterPositiveSeries(chartLabels, chartSeguidores.map((v) => Math.round(v)));
+
+const agg = aggregateCreators(s.creators);
+const slugMap = slugMapForCreators(s.creators.map((c) => c.creador));
+const topCreators = agg.slice(0, 20);
+
+const totalViewsAll = activePlatforms.reduce(
+  (a, p) => a + s.platforms[p].total_visualizaciones,
+  0,
+);
+const totalContentAll = activePlatforms.reduce((a, p) => a + s.platforms[p].content_count, 0);
+const totalLikesAll = activePlatforms.reduce((a, p) => a + s.platforms[p].total_likes, 0);
+const totalSeguidoresAll = activePlatforms.reduce(
+  (a, p) => a + (s.platforms[p].max_seguidores ?? 0),
+  0,
+);
+
+let generatedLabel = s.generated_at;
+try {
+  generatedLabel = fmtDate.format(new Date(s.generated_at));
+} catch {
+  /* literal */
+}
+
+const topMetricCount = 2 + (totalLikesAll > 0 ? 1 : 0) + (totalSeguidoresAll > 0 ? 1 : 0);
+const topGridClass =
+  topMetricCount >= 4
+    ? "mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    : topMetricCount === 3
+      ? "mb-10 grid gap-4 sm:grid-cols-3"
+      : "mb-10 grid gap-4 sm:grid-cols-2";
+---
+
+<Layout title="Resum · Dashboard Poblet">
+  <div class="mb-10 space-y-2">
+    <h1 class="text-3xl font-bold tracking-tight text-white">Resum global</h1>
+    <p class="max-w-2xl text-sm text-zinc-400">
+      Darrera actualització del dataset: <span class="text-zinc-300">{generatedLabel}</span>
+      · run <code class="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs">{s.run_id}</code>
+      · <span class="tabular-nums">{fmt.format(s.snapshot_rows)}</span> peces de contingut en aquest snapshot
+    </p>
+  </div>
+
+  <section class={topGridClass}>
+    <MetricCard
+      label="Visualitzacions (totes les xarxes)"
+      value={fmt.format(Math.round(totalViewsAll))}
+      hint={`${fmt.format(totalContentAll)} peces al snapshot`}
+    />
+    <MetricCard
+      label="Continguts totals"
+      value={fmt.format(totalContentAll)}
+      hint="Suma de totes les plataformes"
+    />
+    {
+      totalLikesAll > 0 && (
+        <MetricCard
+          label="M’agrada totals"
+          value={fmt.format(Math.round(totalLikesAll))}
+          hint="On la xarxa exposa el comptador"
+        />
+      )
+    }
+    {
+      totalSeguidoresAll > 0 && (
+        <MetricCard
+          label="Seguidors (suma de màx. per xarxa)"
+          value={fmt.format(Math.round(totalSeguidoresAll))}
+          hint="Màxim observat al snapshot per plataforma; no és un compte d’usuaris únics"
+        />
+      )
+    }
+  </section>
+
+  <section class="mb-10">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      Per plataforma
+    </h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        activePlatforms.map((p) => {
+          const d = s.platforms[p];
+          return (
+            <MetricCard
+              label={p.charAt(0).toUpperCase() + p.slice(1)}
+              value={fmt.format(Math.round(d.total_visualizaciones))}
+              hint={formatPlatformCardHint(d, fmt)}
+              href={`/plataformes/${p}`}
+            />
+          );
+        })
+      }
+    </div>
+  </section>
+
+  <section class="mb-12">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      Gràfics per plataforma
+    </h2>
+    <p class="mb-4 max-w-2xl text-xs text-zinc-500">
+      Només es mostren xarxes amb valor estrictament major que zero a cada mètrica (les que no apliquen o són 0 no es
+      dibuixen).
+    </p>
+    <div class="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+      <BarChart
+        labels={viewsF.labels}
+        values={viewsF.values}
+        title="Visualitzacions totals"
+        color="129, 140, 248"
+      />
+      <BarChart
+        labels={contentsF.labels}
+        values={contentsF.values}
+        title="Nombre de continguts"
+        color="52, 211, 153"
+      />
+      {seguidoresF.labels.length > 0 && (
+        <BarChart
+          labels={seguidoresF.labels}
+          values={seguidoresF.values}
+          title="Seguidors (màx. per plataforma al snapshot)"
+          color="34, 197, 94"
+        />
+      )}
+      <DoughnutChart
+        labels={viewsF.labels}
+        values={viewsF.values}
+        title="Repartiment de visualitzacions"
+        colors={viewsF.colors}
+      />
+    </div>
+    {
+      (likesF.labels.length > 0 || commentsF.labels.length > 0) && (
+        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+          {likesF.labels.length > 0 && (
+            <BarChart
+              labels={likesF.labels}
+              values={likesF.values}
+              title="M’agrada totals per plataforma"
+              color="251, 191, 36"
+            />
+          )}
+          {commentsF.labels.length > 0 && (
+            <BarChart
+              labels={commentsF.labels}
+              values={commentsF.values}
+              title="Comentaris totals per plataforma"
+              color="244, 114, 182"
+            />
+          )}
+        </div>
+      )
+    }
+  </section>
+
+  <section>
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        Creadors (agregat de totes les xarxes)
+      </h2>
+      <a href="/creadors" class="text-sm text-indigo-300 hover:text-indigo-200 hover:underline">
+        Veure tots els creadors →
+      </a>
+    </div>
+    <div class="overflow-hidden rounded-xl border border-zinc-800">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <tr>
+            <th class="px-4 py-3 font-medium">Creador</th>
+            <th class="px-4 py-3 font-medium">Xarxes</th>
+            <th class="px-4 py-3 font-medium text-right">Continguts</th>
+            <th class="px-4 py-3 font-medium text-right">Visualitzacions</th>
+            <th class="px-4 py-3 font-medium text-right">Seguidors</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800">
+          {
+            topCreators.map((row) => (
+              <tr class="hover:bg-zinc-900/50">
+                <td class="px-4 py-3">
+                  <a
+                    href={`/creadors/${slugMap.get(row.creador)!}`}
+                    class="font-medium text-indigo-300 hover:text-indigo-200 hover:underline"
+                  >
+                    {row.creador}
+                  </a>
+                </td>
+                <td class="px-4 py-3 text-zinc-400">{row.platforms}</td>
+                <td class="px-4 py-3 text-right tabular-nums text-zinc-300">
+                  {fmt.format(row.content_count)}
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums text-zinc-200">
+                  {fmt.format(Math.round(row.visualizaciones))}
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums text-emerald-300/90">
+                  {row.seguidores > 0 ? fmt.format(Math.round(row.seguidores)) : "—"}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>
